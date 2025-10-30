@@ -1,0 +1,1285 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ассистент Проповедника (демо)</title>
+
+    <!-- Tailwind + Quill -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
+    <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+    <!-- Внешние файлы -->
+    <script src="config.js"></script>
+    <script src="utils.js"></script>
+    <script src="storage.js"></script>
+
+ <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
+        :root {
+            --font-main: 'Inter', sans-serif;
+            --text-color: #1f2937;
+            --heading-color: #111827;
+            --font-base: 1.125rem;
+            --font-h1: 1.5rem;
+            --font-h2: 1.25rem;
+            --font-h3: 1.125rem;
+            --line-height: 1.6;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f7f9fb;
+        }
+
+        /* Quill редактор */
+        .ql-editor {
+            font-family: var(--font-main) !important;
+            font-size: var(--font-base) !important;
+            line-height: var(--line-height) !important;
+            color: var(--text-color) !important;
+            padding: 0 !important;
+        }
+        .ql-editor h1 { font-size: var(--font-h1); font-weight: 700; color: var(--heading-color);
+                        margin: 1em 0 .5em; border-bottom: 1px solid #e5e7eb; padding-bottom: .2em; }
+        .ql-editor h2 { font-size: var(--font-h2); font-weight: 600; color: var(--heading-color);
+                        margin: 1em 0 .5em; }
+        .ql-editor h3 { font-size: var(--font-h3); font-weight: 500; color: var(--text-color);
+                        margin: 1em 0 .5em; }
+        .ql-editor p { margin-bottom: .75em; }
+        .ql-editor ul, .ql-editor ol { margin-left: 1.25rem; margin-bottom: .75em; }
+        .ql-editor li { margin-bottom: .25em; padding-left: .25em; }
+
+        /* AI-блоки */
+        #exegesis-content, #illustration-content, #structure-content {
+            font-family: var(--font-main);
+            font-size: var(--font-base);
+            line-height: var(--line-height);
+            color: var(--text-color);
+        }
+        #exegesis-content h1, #illustration-content h1, #structure-content h1 {
+            font-size: var(--font-h1); font-weight: 700; color: var(--heading-color);
+            margin: 1em 0 .5em; border-bottom: 1px solid #e5e7eb; padding-bottom: .2em;
+        }
+        #exegesis-content h2, #illustration-content h2, #structure-content h2 {
+            font-size: var(--font-h2); font-weight: 600; color: var(--heading-color);
+            margin: 1em 0 .5em;
+        }
+        #exegesis-content h3, #illustration-content h3, #structure-content h3 {
+            font-size: var(--font-h3); font-weight: 500; color: var(--text-color);
+            margin: 1em 0 .5em;
+        }
+        #exegesis-content p, #illustration-content p, #structure-content p { margin-bottom: .75em; }
+        #exegesis-content ul, #exegesis-content ol,
+        #illustration-content ul, #illustration-content ol,
+        #structure-content ul, #structure-content ol {
+            list-style-type: disc; margin-left: 1.25rem; margin-bottom: .75em;
+        }
+        #exegesis-content li, #illustration-content li, #structure-content li {
+            margin-bottom: .25em; padding-left: .25em;
+        }
+
+        /* Компоненты */
+        .assistant-card { box-shadow: 0 4px 8px rgba(0,0,0,.1); transition: transform .2s ease; }
+        .btn-assist { background-color: #2c7a7b; transition: background-color .3s; }
+        .btn-assist:hover:not(:disabled) { background-color: #235d5e; }
+        .btn-assist:disabled { background-color: #81c7c7; cursor: not-allowed; }
+
+        .loading-spinner {
+            border: 3px solid #e5e7eb; border-top-color: #2c7a7b;
+            animation: spin .8s ease-in-out infinite; border-radius: 50%;
+            width: 1.5rem; height: 1.5rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .sermon-item { transition: all .2s; cursor: pointer; }
+        .sermon-item:hover { background-color: #e0f2f1; transform: translateX(3px); }
+        .sermon-item.active { background-color: #b2dfdb; border-left: 3px solid #2c7a7b; }
+
+        .status-badge { font-size: .65rem; padding: .2rem .4rem; border-radius: 9999px; }
+        .status-draft { background-color: #fef3c7; color: #92400e; }
+        .status-ready { background-color: #dbeafe; color: #1e40af; }
+        .status-preached { background-color: #d1fae5; color: #065f46; }
+        .status-archived { background-color: #f3f4f6; color: #6b7280; }
+
+        input[aria-invalid="true"], select[aria-invalid="true"] {
+            border-color: #ef4444; background-color: #fef2f2;
+        }
+
+        .tooltip { position: relative; }
+        .tooltip .tooltip-text {
+            visibility: hidden; width: 200px; background-color: #374151; color: #fff;
+            text-align: center; border-radius: 6px; padding: 5px; position: absolute;
+            z-index: 1; bottom: 125%; left: 50%; margin-left: -100px; opacity: 0;
+            transition: opacity .3s; font-size: .75rem;
+        }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+        /* Кнопки в шапке */
+        #sermon-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        #sermon-actions button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.5rem 0.875rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+            white-space: nowrap;
+            min-height: 2rem;
+        }
+        #sermon-actions button svg {
+            width: 0.875rem;
+            height: 0.875rem;
+            margin-right: 0.375rem;
+            flex-shrink: 0;
+        }
+        #sermon-actions .btn-help { background-color: #f3f4f6; color: #374151; }
+        #sermon-actions .btn-help:hover { background-color: #e5e7eb; }
+        #sermon-actions .btn-delete { background-color: #fee2e2; color: #991b1b; }
+        #sermon-actions .btn-delete:hover { background-color: #fecaca; }
+        #sermon-actions .btn-save { background-color: #d1fae5; color: #065f46; }
+        #sermon-actions .btn-save:hover { background-color: #a7f3d0; }
+        #sermon-actions .btn-export { background-color: #dbeafe; color: #1e40af; }
+        #sermon-actions .btn-export:hover { background-color: #bfdbfe; }
+        
+        .welcome-btn-grid {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .welcome-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            min-width: 180px;
+        }
+        .welcome-btn svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            margin-right: 0.5rem;
+        }
+
+        @media (max-width: 640px) {
+            .assistant-card { padding: .75rem; }
+            input, select { font-size: .875rem; padding: .5rem; }
+            #editor { height: 350px; }
+            .tooltip .tooltip-text { width: 150px; margin-left: -75px; }
+            #sermon-actions { justify-content: center; }
+        }
+
+        /* Кнопка Библия */
+        .ql-toolbar .ql-bible {
+            background-color: #2c7a7b !important;
+            color: white !important;
+            border-radius: 6px !important;
+            padding: 4px 8px !important;
+            margin: 0 2px !important;
+            transition: all 0.2s ease !important;
+            min-width: 65px !important;
+            width: auto !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .ql-toolbar .ql-bible:hover {
+            background-color: #235d5e !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 2px 8px rgba(44, 122, 123, 0.4) !important;
+        }
+        .ql-toolbar .ql-bible svg { stroke: white !important; }
+        .ql-toolbar .ql-bible span { white-space: nowrap !important; font-size: 11px !important; font-weight: 500 !important; }
+
+        /* Вкладки помощи */
+        .tab-active {
+            @apply border-b-2 border-[#2c7a7b] text-[#2c7a7b] font-medium;
+        }
+        .tab-inactive {
+            @apply hover:text-[#2c7a7b] transition;
+        }
+    </style>
+
+</head>
+
+<body class="flex h-screen overflow-hidden">
+
+    <!-- ====================== SIDEBAR ====================== -->
+    <aside id="sidebar" class="w-72 bg-white border-r border-gray-200 flex flex-col">
+        <div class="p-3 border-b border-gray-200">
+            <h2 class="text-lg font-bold text-[#2c7a7b] mb-2">Мои Проповеди</h2>
+            <button onclick="App.createNewSermon()"
+                    class="w-full bg-[#2c7a7b] text-white font-semibold py-1.5 px-3 rounded-md hover:bg-[#235d5e] transition flex items-center justify-center"
+                    aria-label="Создать новую проповедь">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Новая Проповедь
+            </button>
+        </div>
+
+        <div id="sermons-list" class="flex-1 overflow-y-auto p-2"></div>
+
+        <div class="p-3 border-t border-gray-200 space-y-1.5">
+            <button onclick="App.exportToJSON()"
+                    class="w-full bg-gray-100 text-gray-700 font-medium py-1.5 px-3 rounded-md hover:bg-gray-200 transition text-xs flex items-center justify-center"
+                    aria-label="Экспортировать в JSON">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Экспорт JSON
+            </button>
+
+            <label class="w-full bg-gray-100 text-gray-700 font-medium py-1.5 px-3 rounded-md hover:bg-gray-200 transition text-xs flex items-center justify-center cursor-pointer"
+                   aria-label="Импортировать из JSON">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                Импорт JSON
+                <input type="file" id="import-file" accept=".json" onchange="App.importFromJSON(event)" class="hidden">
+            </label>
+        </div>
+    </aside>
+
+    <!-- ====================== MAIN ====================== -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white border-b border-gray-200 p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-extrabold text-[#2c7a7b]" id="main-title">Ассистент Проповедника (демо)</h1>
+                    <p class="text-gray-600 text-sm mt-1" id="main-subtitle">Выберите проповедь или создайте новую</p>
+                </div>
+                <div id="sermon-actions" class="hidden space-x-1.5">
+                    <button onclick="App.openHelpModal()"
+                            class="bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center"
+                            aria-label="Помощь">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M8.228 9c.549-1.165 1.514-2 2.772-2 1.634 0 3 1.366 3 3 0 1.3-.836 2.4-2 2.8v.4m0 2.4v1.2m0-6v.8"/>
+                        </svg>
+                        Помощь
+                    </button>
+                    <button onclick="App.deleteCurrentSermon()"
+                            class="bg-red-100 text-red-700 hover:bg-red-200"
+                            aria-label="Удалить проповедь">Удалить</button>
+                    <button onclick="App.saveCurrentSermon()"
+                            class="bg-green-100 text-green-700 hover:bg-green-200"
+                            aria-label="Сохранить проповедь">Сохранено</button>
+                    <button onclick="App.exportToDocx()"
+                            class="bg-blue-100 text-blue-700 hover:bg-blue-200"
+                            aria-label="Экспортировать в DOCX">Экспорт в DOCX</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-4">
+
+            <!-- ==== Welcome ==== -->
+            <div id="welcome-screen" class="max-w-3xl mx-auto text-center py-16">
+                <svg class="w-20 h-20 mx-auto mb-4 text-[#2c7a7b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Добро пожаловать!</h2>
+                <p class="text-gray-600 text-sm mb-4">Создайте новую проповедь или импортируйте существующие данные</p>
+                <button onclick="App.createNewSermon()"
+                        class="bg-[#2c7a7b] text-white font-bold py-2 px-5 rounded-md hover:bg-[#235d5e] transition"
+                        aria-label="Создать первую проповедь">Создать первую проповедь</button>
+            </div>
+
+            <!-- ==== Workspace ==== -->
+            <div id="sermon-workspace" class="hidden max-w-6xl mx-auto">
+                <!-- Основная информация -->
+                <div class="assistant-card bg-white p-4 rounded-lg border border-gray-200 mb-4">
+                    <h3 class="text-base font-bold text-gray-800 mb-3">Основная информация</h3>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Название проповеди <span class="text-red-500">*</span></label>
+                            <input type="text" id="sermon-title" onchange="App.updateSermonMetadata()"
+                                   class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2c7a7b] focus:ring-offset-2 focus:border-[#2c7a7b]"
+                                   placeholder="Введите название" required>
+                            <p id="sermon-title-error" class="hidden text-xs text-red-600 mt-1"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Дата проповеди</label>
+                            <input type="date" id="sermon-date" onchange="App.updateSermonMetadata()"
+                                   class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2c7a7b] focus:ring-offset-2 focus:border-[#2c7a7b]">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Статус</label>
+                            <select id="sermon-status" onchange="App.updateSermonMetadata()"
+                                    class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2c7a7b] focus:ring-offset-2 focus:border-[#2c7a7b]">
+                                <option value="draft">Черновик</option>
+                                <option value="ready">Готова</option>
+                                <option value="preached">Проповедана</option>
+                                <option value="archived">Архив</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Длительность (мин)</label>
+                            <input type="number" id="sermon-duration" onchange="App.updateSermonMetadata()"
+                                   class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2c7a7b] focus:ring-offset-2 focus:border-[#2c7a7b]"
+                                   value="30" min="5" max="120">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Помощник -->
+                <div class="assistant-card bg-white p-4 rounded-lg border border-gray-200 mb-4">
+                    <h3 class="text-base font-bold text-gray-800 mb-3">AI Помощник</h3>
+                    <div class="space-y-3 mb-4">
+                        <div class="tooltip">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Библейский Отрывок <span class="text-red-500">*</span></label>
+                            <div class="flex items-center space-x-2">
+                                <input type="text" id="passage" list="book-list"
+                                       onchange="App.validatePassage(this); App.updateSermonMetadata()"
+                                       class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2c7a7b] focus:ring-offset-2 focus:border-[#2c7a7b]"
+                                       placeholder="Например: К Римлянам 1:2" required>
+                                <button onclick="App.showBookList()"
+                                        class="bg-gray-200 text-gray-700 font-medium py-1.5 px-3 rounded-md hover:bg-gray-300 transition text-xs">Книга</button>
+                            </div>
+                            <span class="tooltip-text">Введите название книги и главу/стих, например: К Римлянам 1:2 или Иоанна 3:16-18</span>
+                            <datalist id="book-list"></datalist>
+                            <p id="passage-error" class="hidden text-xs text-red-600 mt-1"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Целевая Аудитория</label>
+                            <select id="audience" onchange="App.updateSermonMetadata()"
+                                    class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2c7a7b] focus:ring-offset-2 focus:border-[#2c7a7b]">
+                                <option value="работающие взрослые">Работающие взрослые</option>
+                                <option value="молодежь и студенты">Молодежь и студенты</option>
+                                <option value="пожилые люди">Пожилые люди</option>
+                                <option value="общая аудитория">Общая аудитория</option>
+                                <option value="лидеры и служители">Лидеры и служители</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Главная Идея <span class="text-red-500">*</span></label>
+                            <div id="editor" class="w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2c7a7b] focus:ring-offset-2 focus:border-[#2c7a7b]"
+                                 style="height: 450px;"></div>
+                            <p id="editor-error" class="hidden text-xs text-red-600 mt-1"></p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <button onclick="App.getAssistance('exegesis')" id="btn-exegesis"
+                                class="btn-assist bg-[#2c7a7b] text-white font-semibold py-2 px-3 rounded-md shadow hover:shadow-md flex items-center justify-center text-sm">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                            </svg>
+                            Экзегеза
+                        </button>
+                        <button onclick="App.getAssistance('illustration')" id="btn-illustration"
+                                class="btn-assist bg-[#2c7a7b] text-white font-semibold py-2 px-3 rounded-md shadow hover:shadow-md flex items-center justify-center text-sm">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            Иллюстрации
+                        </button>
+                        <button onclick="App.getAssistance('structure')" id="btn-structure"
+                                class="btn-assist bg-[#2c7a7b] text-white font-semibold py-2 px-3 rounded-md shadow hover:shadow-md flex items-center justify-center text-sm">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                            </svg>
+                            Структура
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Индикатор загрузки -->
+                <div id="loading-indicator" class="hidden text-center p-4 bg-yellow-50 rounded-md border border-yellow-200 mb-4">
+                    <div class="loading-spinner inline-block mb-2"></div>
+                    <p class="text-gray-700 text-sm font-medium">Анализирую Писание...</p>
+                </div>
+
+                <!-- Ошибка -->
+                <div id="error-message" class="hidden p-3 bg-red-100 border border-red-400 text-red-700 rounded-md mb-4 text-sm"></div>
+
+                <!-- Секции AI -->
+                <div id="preparation-sections" class="space-y-4">
+                    <div id="exegesis-section" class="hidden assistant-card bg-white p-4 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-base font-bold text-gray-800">Экзегетический Анализ</h3>
+                            <button onclick="App.insertToEditor('exegesis')"
+                                    class="bg-[#2c7a7b] text-white font-medium py-1.5 px-3 rounded-md hover:bg-[#235d5e] transition text-xs">
+                                Вставить в редактор
+                            </button>
+                        </div>
+                        <div id="exegesis-content" class="text-sm"></div>
+                    </div>
+                    <div id="illustration-section" class="hidden assistant-card bg-white p-4 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-base font-bold text-gray-800">Идеи для Иллюстраций</h3>
+                            <button onclick="App.insertToEditor('illustration')"
+                                    class="bg-[#2c7a7b] text-white font-medium py-1.5 px-3 rounded-md hover:bg-[#235d5e] transition text-xs">
+                                Вставить в редактор
+                            </button>
+                        </div>
+                        <div id="illustration-content" class="text-sm"></div>
+                    </div>
+                    <div id="structure-section" class="hidden assistant-card bg-white p-4 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-base font-bold text-gray-800">Структура Проповеди</h3>
+                            <button onclick="App.insertToEditor('structure')"
+                                    class="bg-[#2c7a7b] text-white font-medium py-1.5 px-3 rounded-md hover:bg-[#235d5e] transition text-xs">
+                                Вставить в редактор
+                            </button>
+                        </div>
+                        <div id="structure-content" class="text-sm"></div>
+                    </div>
+                </div>
+
+                <!-- Модальное окно вставки стиха -->
+                <div id="bible-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                    <div class="bg-white p-4 rounded-lg w-full max-w-sm">
+                        <h3 class="text-base font-bold text-gray-800 mb-3">Вставить стих из Писания</h3>
+                        <div class="mb-3 tooltip">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Библейский отрывок <span class="text-red-500">*</span></label>
+                            <div class="flex items-center space-x-2">
+                                <input type="text" id="bible-reference" list="book-list"
+                                       class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2c7a7b] focus:ring-offset-2 focus:border-[#2c7a7b]"
+                                       placeholder="Например: К Римлянам 1:2" required>
+                                <button onclick="App.showBookList()"
+                                        class="bg-gray-200 text-gray-700 font-medium py-1.5 px-3 rounded-md hover:bg-gray-300 transition text-xs">Книга</button>
+                            </div>
+                            <span class="tooltip-text">Введите название книги и главу/стих</span>
+                            <datalist id="book-list"></datalist>
+                            <p id="bible-reference-error" class="hidden text-xs text-red-600 mt-1"></p>
+                        </div>
+                        <div class="flex justify-end space-x-1.5">
+                            <button onclick="App.closeBibleModal()"
+                                    class="bg-gray-200 text-gray-700 font-medium py-1.5 px-3 rounded-md hover:bg-gray-300 transition text-xs">Отмена</button>
+                            <button onclick="App.fetchBibleVerse()"
+                                    class="bg-[#2c7a7b] text-white font-medium py-1.5 px-3 rounded-md hover:bg-[#235d5e] transition text-xs">Вставить</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ====================== HELP MODAL ====================== -->
+    <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-[#2c7a7b]">Помощь: Ассистент Проповедника (демо)</h2>
+                <button onclick="App.closeHelpModal()" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <div class="flex space-x-1 border-b border-gray-200">
+                    <button onclick="App.switchHelpTab('overview')" id="tab-overview" class="tab-active px-4 py-2 text-sm font-medium text-[#2c7a7b] border-b-2 border-[#2c7a7b]">
+                        Общее
+                    </button>
+                    <button onclick="App.switchHelpTab('sermon')" id="tab-sermon" class="tab-inactive px-4 py-2 text-sm font-medium text-gray-600 hover:text-[#2c7a7b]">
+                        Проповедь
+                    </button>
+                    <button onclick="App.switchHelpTab('ai')" id="tab-ai" class="tab-inactive px-4 py-2 text-sm font-medium text-gray-600 hover:text-[#2c7a7b]">
+                        AI-Помощник
+                    </button>
+                    <button onclick="App.switchHelpTab('bible')" id="tab-bible" class="tab-inactive px-4 py-2 text-sm font-medium text-gray-600 hover:text-[#2c7a7b]">
+                        Библия
+                    </button>
+                    <button onclick="App.switchHelpTab('export')" id="tab-export" class="tab-inactive px-4 py-2 text-sm font-medium text-gray-600 hover:text-[#2c7a7b]">
+                        Экспорт
+                    </button>
+                </div>
+
+                <div id="help-content" class="text-sm text-gray-700 space-y-5">
+                    <!-- Общее -->
+                    <div id="help-overview">
+                        <h3 class="text-lg font-semibold text-[#2c7a7b] mb-3">Добро пожаловать!</h3>
+                        <p>Ассистент Проповедника (демо) — это инструмент для подготовки библейских проповедей с помощью ИИ и встроенного доступа к Писанию.</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li>Создавайте, редактируйте и храните проповеди локально</li>
+                            <li>Получайте экзегезу, иллюстрации и структуру от ИИ</li>
+                            <li>Вставляйте стихи из Библии одним кликом</li>
+                            <li>Экспортируйте в DOCX и JSON</li>
+                        </ul>
+                        <div class="bg-blue-50 border border-blue-200 rounded-md p-3 mt-4">
+                            <p class="text-xs font-medium text-blue-900">Данные сохраняются в браузере (localStorage). Используйте <strong>Экспорт JSON</strong> для резервной копии.</p>
+                        </div>
+                    </div>
+
+                    <!-- Проповедь -->
+                    <div id="help-sermon" class="hidden">
+                        <h3 class="text-lg font-semibold text-[#2c7a7b] mb-3">Работа с проповедью</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <h4 class="font-medium text-gray-800">Создание</h4>
+                                <p class="text-xs mt-1">Нажмите <strong>"Новая Проповедь"</strong> в боковой панели или на стартовом экране.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-medium text-gray-800">Заполнение</h4>
+                                <ul class="text-xs list-disc pl-5 space-y-1">
+                                    <li><strong>Название</strong> — минимум 3 символа</li>
+                                    <li><strong>Библейский отрывок</strong> — формат: <code class="bg-gray-100 px-1 rounded">К Римлянам 8:28</code> или <code class="bg-gray-100 px-1 rounded">Иоанна 3:16-18</code></li>
+                                    <li><strong>Главная идея (набрать в редакторе)</strong> — минимум 10 символов в редакторе</li>
+                                </ul>
+                            </div>
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                                <p class="text-xs font-medium text-yellow-900">Пример отрывка:</p>
+                                <p class="text-xs mt-1"><code class="bg-gray-100 px-1 rounded">Псалом 22:1-5</code> → <em>Господь — Пастырь мой...</em></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI -->
+                    <div id="help-ai" class="hidden">
+                        <h3 class="text-lg font-semibold text-[#2c7a7b] mb-3">AI-Помощник</h3>
+                        <p class="text-xs mb-3">Нажмите на одну из кнопок после заполнения <strong>отрывка</strong> и <strong>главной идеи</strong>.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                            <div class="border border-gray-200 rounded-md p-3 bg-teal-50">
+                                <h4 class="font-semibold text-[#2c7a7b]">Экзегеза</h4>
+                                <p class="mt-1">Глубокий разбор текста: контекст, лексика, богословие.</p>
+                            </div>
+                            <div class="border border-gray-200 rounded-md p-3 bg-teal-50">
+                                <h4 class="font-semibold text-[#2c7a7b]">Иллюстрации</h4>
+                                <p class="mt-1">Примеры из жизни, истории, природы — под вашу аудиторию.</p>
+                            </div>
+                            <div class="border border-gray-200 rounded-md p-3 bg-teal-50">
+                                <h4 class="font-semibold text-[#2c7a7b]">Структура</h4>
+                                <p class="mt-1">Введение → Основные пункты → Применение → Заключение.</p>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 border border-green-200 rounded-md p-3 mt-3">
+                            <p class="text-xs font-medium text-green-900">Нажмите <strong>"Вставить в редактор"</strong> — текст добавится в Quill.</p>
+                        </div>
+                    </div>
+
+                    <!-- Библия -->
+                    <div id="help-bible" class="hidden">
+                        <h3 class="text-lg font-semibold text-[#2c7a7b] mb-3">Вставка из Библии</h3>
+                        <ol class="text-xs list-decimal pl-5 space-y-2">
+                            <li>В редакторе нажмите кнопку <strong>Библия</strong> на панели</li>
+                            <li>Введите отрывок: <code class="bg-gray-100 px-1 rounded">К Галатам 5:22-23</code></li>
+                            <li>Нажмите <strong>"Вставить"</strong></li>
+                        </ol>
+                        <div class="bg-purple-50 border border-purple-200 rounded-md p-3 mt-3">
+                            <p class="text-xs font-medium text-purple-900">Результат:</p>
+                            <p class="text-xs mt-1 italic"><strong>К Галатам 5:22-23:</strong> Плод же духа: любовь, радость, мир...</p>
+                        </div>
+                        <p class="text-xs mt-3 text-gray-600">Используется перевод <strong>Синодальный</strong>. Поддерживаются диапазоны и целые главы.</p>
+                    </div>
+
+                    <!-- Экспорт -->
+                    <div id="help-export" class="hidden">
+                        <h3 class="text-lg font-semibold text-[#2c7a7b] mb-3">Экспорт и импорт</h3>
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <h4 class="font-medium text-gray-800">DOCX</h4>
+                                <p>Готовый документ с заголовками, метаданными и всем содержимым.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-medium text-gray-800">JSON</h4>
+                                <p>Резервная копия всех проповедей. Импортируйте на другом устройстве.</p>
+                            </div>
+                            <div class="bg-orange-50 border border-orange-200 rounded-md p-3">
+                                <p class="text-xs font-medium text-orange-900">Совет: Регулярно экспортируйте JSON!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 border-t border-gray-200 p-4 text-center">
+                <p class="text-xs text-gray-500">v1.0 • Ассистент Проповедника (демо)</p>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const App = {
+        sermons: null,
+        currentSermonId: null,
+        autoSaveTimer: null,
+        quill: null,
+
+        bookMap: {
+            "Бытие":1,"Исход":2,"Левит":3,"Числа":4,"Второзаконие":5,"Иисус Навин":6,"Книга Судей":7,"Руфь":8,
+            "1-я Царств":9,"2-я Царств":10,"3-я Царств":11,"4-я Царств":12,"1-я Паралипоменон":13,"2-я Паралипоменон":14,
+            "Ездра":15,"Неемия":16,"Есфирь":17,"Иов":18,"Псалтирь":19,"Притчи":20,"Екклесиаст":21,"Песни Песней":22,
+            "Исаия":23,"Иеремия":24,"Плач Иеремии":25,"Иезекииль":26,"Даниил":27,"Осия":28,"Иоиль":29,"Амос":30,
+            "Авдий":31,"Иона":32,"Михей":33,"Наум":34,"Аввакум":35,"Софония":36,"Аггей":37,"Захария":38,"Малахия":39,
+            "От Матфея":40,"Матфей":40,"От Марка":41,"Марк":41,"От Луки":42,"Лука":42,"От Иоанна":43,"Иоанна":43,
+            "Деяния":44,"К Римлянам":45,"Римлянам":45,"1-е Коринфянам":46,"2-е Коринфянам":47,"К Галатам":48,"К Ефесянам":49,
+            "К Филиппийцам":50,"Филиппийцам":50,"К Колоссянам":51,"Колоссянам":51,"1-е Фессалоникийцам":52,"2-е Фессалоникийцам":53,
+            "1-е Тимофею":54,"2-е Тимофею":55,"К Титу":56,"К Филимону":57,"К Евреям":58,"Иакова":59,"1-е Петра":60,
+            "2-е Петра":61,"1-е Иоанна":62,"2-е Иоанна":63,"3-е Иоанна":64,"Иуда":65,"Откровение":66,
+            "2 кн. Ездры":67,"Товит":68,"Иудифь":69,"Премудрость Соломона":70,"Сирах":71,
+            "Послание Иеремии":72,"Варух":73,"1 кн. Маккавейская":74,"2 кн. Маккавейская":75,
+            "3 кн. Маккавейская":76,"3 кн. Ездры":77
+        },
+
+        init() {
+            console.log('Инициализация...');
+            if (!StorageManager.isAvailable()) alert('localStorage недоступен!');
+            this.sermons = StorageManager.load();
+            this.renderSermonsList();
+            this.showWelcomeScreen();
+            if (this.sermons.settings.auto_save) {
+                this.autoSaveTimer = setInterval(() => StorageManager.save(this.sermons), CONFIG.STORAGE.AUTO_SAVE_INTERVAL);
+            }
+            console.log('Готово');
+        },
+
+        findClosestBookName(input) {
+            const clean = input.toLowerCase().replace(/[^а-яa-z0-9]/g, '');
+            let best = null, minDist = Infinity;
+            for (const book of Object.keys(this.bookMap)) {
+                const bookClean = book.toLowerCase().replace(/[^а-яa-z0-9]/g, '');
+                const dist = this.levenshteinDistance(clean, bookClean);
+                if (dist < minDist && dist <= 3) {
+                    minDist = dist;
+                    best = book;
+                }
+            }
+            return best;
+        },
+
+        levenshteinDistance(a, b) {
+            const m = [];
+            for (let i = 0; i <= b.length; i++) m[i] = [i];
+            for (let j = 0; j <= a.length; j++) m[0][j] = j;
+            for (let i = 1; i <= b.length; i++)
+                for (let j = 1; j <= a.length; j++) {
+                    m[i][j] = b[i-1] === a[j-1]
+                        ? m[i-1][j-1]
+                        : Math.min(m[i-1][j-1] + 1, m[i][j-1] + 1, m[i-1][j] + 1);
+                }
+            return m[b.length][a.length];
+        },
+
+        showBookList() {
+            alert('Доступные книги:\n\n' + Object.keys(this.bookMap).sort().join('\n'));
+        },
+
+        validatePassage(input) {
+            const val = input.value.trim();
+            const err = document.getElementById(input.id === 'passage' ? 'passage-error' : 'bible-reference-error');
+            if (!val) {
+                input.setAttribute('aria-invalid', 'true');
+                err.textContent = 'Поле пусто';
+                err.classList.remove('hidden');
+                return false;
+            }
+
+            const chapterMatch = val.match(/(\d+[:]\d*)/);
+            if (!chapterMatch) {
+                input.setAttribute('aria-invalid', 'true');
+                err.textContent = 'Укажите главу/стих';
+                err.classList.remove('hidden');
+                return false;
+            }
+
+            const chapterPos = chapterMatch.index;
+            const rawBook = val.substring(0, chapterPos).trim();
+            const rest = val.substring(chapterPos).trim();
+
+            let bookName = Object.keys(this.bookMap).find(k => k.toLowerCase() === rawBook.toLowerCase());
+            if (!bookName) {
+                bookName = this.findClosestBookName(rawBook);
+                if (!bookName) {
+                    input.setAttribute('aria-invalid', 'true');
+                    err.textContent = 'Книга не найдена';
+                    err.classList.remove('hidden');
+                    return false;
+                }
+                input.value = `${bookName} ${rest}`;
+            }
+
+            const m = rest.match(/^(\d+)(?::(\d+)(?:-(\d+))?)?$/);
+            if (!m) {
+                input.setAttribute('aria-invalid', 'true');
+                err.textContent = 'Неверный формат главы/стиха';
+                err.classList.remove('hidden');
+                return false;
+            }
+            const [, c, s, e] = m;
+            if (s && e && +e < +s) {
+                input.setAttribute('aria-invalid', 'true');
+                err.textContent = 'Конечный стих меньше начального';
+                err.classList.remove('hidden');
+                return false;
+            }
+
+            input.setAttribute('aria-invalid', 'false');
+            err.classList.add('hidden');
+            return true;
+        },
+
+        validateTitle(inp) {
+            const v = inp.value.trim();
+            const e = document.getElementById('sermon-title-error');
+            if (v.length < 3) {
+                inp.setAttribute('aria-invalid', 'true');
+                e.textContent = 'Минимум 3 символа';
+                e.classList.remove('hidden');
+                return false;
+            }
+            inp.setAttribute('aria-invalid', 'false');
+            e.classList.add('hidden');
+            return true;
+        },
+
+        validateEditor() {
+            const txt = this.quill?.getText().trim() || '';
+            const e = document.getElementById('editor-error');
+            if (txt.length < 10) {
+                e.textContent = 'Минимум 10 символов';
+                e.classList.remove('hidden');
+                return false;
+            }
+            e.classList.add('hidden');
+            return true;
+        },
+
+        showWelcomeScreen() {
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('sermon-workspace').classList.add('hidden');
+            document.getElementById('sermon-actions').classList.add('hidden');
+            document.getElementById('main-subtitle').textContent = 'Выберите проповедь или создайте новую';
+        },
+
+        showSermonWorkspace() {
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('sermon-workspace').classList.remove('hidden');
+            document.getElementById('sermon-actions').classList.remove('hidden');
+        },
+
+        createNewSermon() {
+            const s = {
+                id: Utils.generateSermonId(),
+                metadata: {
+                    title: "Новая проповедь",
+                    passage: "",
+                    audience: this.sermons.settings.default_audience,
+                    date_created: Utils.getCurrentISODate(),
+                    date_modified: Utils.getCurrentISODate(),
+                    date_preached: "",
+                    status: CONFIG.DEFAULTS.STATUS,
+                    tags: [],
+                    duration_planned: this.sermons.settings.default_duration
+                },
+                preparation: {
+                    main_idea: "",
+                    exegesis: { content: "", ai_generated: false, date_generated: null },
+                    illustrations: { content: "", ai_generated: false, date_generated: null },
+                    structure: { content: "", ai_generated: false, date_generated: null }
+                },
+                sermon_text: { introduction: "", main_body: "", conclusion: "", full_text: "" },
+                notes: [],
+                resources: []
+            };
+            this.sermons.sermons.unshift(s);
+            this.currentSermonId = s.id;
+            StorageManager.save(this.sermons);
+            this.renderSermonsList();
+            this.loadSermon(s.id);
+        },
+
+        loadSermon(id) {
+            this.currentSermonId = id;
+            const s = this.sermons.sermons.find(x => x.id === id);
+            if (!s) return;
+
+            this.showSermonWorkspace();
+
+            const el = {
+                title: document.getElementById('sermon-title'),
+                date: document.getElementById('sermon-date'),
+                status: document.getElementById('sermon-status'),
+                duration: document.getElementById('sermon-duration'),
+                passage: document.getElementById('passage'),
+                audience: document.getElementById('audience'),
+                subtitle: document.getElementById('main-subtitle')
+            };
+
+            el.subtitle.textContent = s.metadata.passage || 'Укажите отрывок';
+            el.title.value = s.metadata.title || '';
+            this.validateTitle(el.title);
+
+            el.date.value = Utils.formatInputDate(s.metadata.date_preached) || '';
+            el.status.value = s.metadata.status || CONFIG.DEFAULTS.STATUS;
+            el.duration.value = s.metadata.duration_planned || CONFIG.DEFAULTS.DURATION;
+            el.passage.value = s.metadata.passage || '';
+            this.validatePassage(el.passage);
+
+            el.audience.value = s.metadata.audience || CONFIG.DEFAULTS.AUDIENCE;
+
+            if (!this.quill) this.initEditor();
+            this.quill.root.innerHTML = s.preparation.main_idea || '';
+            this.validateEditor();
+
+            this.displayPreparationSection('exegesis', s.preparation.exegesis);
+            this.displayPreparationSection('illustration', s.preparation.illustrations);
+            this.displayPreparationSection('structure', s.preparation.structure);
+
+            document.querySelectorAll('.sermon-item').forEach(i => i.classList.toggle('active', i.dataset.id === id));
+        },
+
+        displayPreparationSection(type, data) {
+            const map = {
+                exegesis: { s: 'exegesis-section', c: 'exegesis-content' },
+                illustration: { s: 'illustration-section', c: 'illustration-content' },
+                structure: { s: 'structure-section', c: 'structure-content' }
+            };
+            const { s: cSection, c: cContent } = map[type] || {};
+            const sec = document.getElementById(cSection), cont = document.getElementById(cContent);
+            if (!sec || !cont || !data.content) {
+                if (sec) sec.classList.add('hidden');
+                return;
+            }
+            sec.classList.remove('hidden');
+            cont.innerHTML = Utils.formatMarkdown(data.content);
+        },
+
+        updateSermonMetadata() {
+            if (!this.currentSermonId) return;
+            const s = this.sermons.sermons.find(x => x.id === this.currentSermonId);
+            if (!s) return;
+
+            const el = {
+                title: document.getElementById('sermon-title'),
+                passage: document.getElementById('passage'),
+                audience: document.getElementById('audience'),
+                status: document.getElementById('sermon-status'),
+                duration: document.getElementById('sermon-duration'),
+                date: document.getElementById('sermon-date'),
+                subtitle: document.getElementById('main-subtitle')
+            };
+
+            let ok = true;
+            if (el.title && !this.validateTitle(el.title)) ok = false;
+            if (el.passage && !this.validatePassage(el.passage)) ok = false;
+            if (!this.validateEditor()) ok = false;
+            if (!ok) return;
+
+            s.metadata.title = el.title.value;
+            s.metadata.passage = el.passage.value;
+            s.metadata.audience = el.audience.value;
+            s.metadata.status = el.status.value;
+            s.metadata.duration_planned = +el.duration.value || CONFIG.DEFAULTS.DURATION;
+            s.metadata.date_preached = el.date.value ? new Date(el.date.value).toISOString() : '';
+            s.preparation.main_idea = this.quill?.root.innerHTML || '';
+            s.metadata.date_modified = Utils.getCurrentISODate();
+            el.subtitle.textContent = s.metadata.passage || 'Укажите отрывок';
+
+            StorageManager.save(this.sermons);
+            this.renderSermonsList();
+        },
+
+        saveCurrentSermon() {
+            this.updateSermonMetadata();
+            const b = event.target;
+            b.textContent = 'Сохранено';
+            setTimeout(() => b.textContent = 'Сохранено', 1500);
+        },
+
+        deleteCurrentSermon() {
+            if (!this.currentSermonId || !confirm('Удалить проповедь?')) return;
+            this.sermons.sermons = this.sermons.sermons.filter(x => x.id !== this.currentSermonId);
+            this.currentSermonId = null;
+            StorageManager.save(this.sermons);
+            this.renderSermonsList();
+            if (this.sermons.sermons.length === 0) this.showWelcomeScreen();
+            else this.loadSermon(this.sermons.sermons[0].id);
+        },
+
+        renderSermonsList() {
+            const list = document.getElementById('sermons-list');
+            if (!list) return;
+            list.innerHTML = this.sermons.sermons.length === 0
+                ? '<p class="text-gray-500 text-xs text-center py-6">Нет проповедей</p>'
+                : this.sermons.sermons.map(s => {
+                    const st = Utils.getStatusText(s.metadata.status);
+                    const d = Utils.formatDisplayDate(s.metadata.date_created);
+                    return `<div class="sermon-item p-2 mb-1.5 rounded-md border border-gray-200 ${s.id === this.currentSermonId ? 'active' : ''}"
+                                data-id="${s.id}" onclick="App.loadSermon('${s.id}')">
+                                <div class="flex items-start justify-between mb-0.5">
+                                    <h4 class="font-semibold text-gray-800 text-xs flex-1">${s.metadata.title}</h4>
+                                    <span class="status-badge status-${s.metadata.status} ml-1.5">${st}</span>
+                                </div>
+                                <p class="text-xs text-gray-600 mb-0.5">${s.metadata.passage || 'Без отрывка'}</p>
+                                <p class="text-xs text-gray-500">${d}</p>
+                            </div>`;
+                }).join('');
+        },
+
+        exportToJSON() { StorageManager.exportToJSON(this.sermons); },
+        async importFromJSON(e) {
+            const f = e.target.files[0];
+            if (!f) return;
+            try {
+                const imp = await StorageManager.importFromJSON(f);
+                if (confirm('Импортировать? Текущие данные будут заменены.')) {
+                    this.sermons = imp;
+                    StorageManager.save(this.sermons);
+                    this.renderSermonsList();
+                    if (this.sermons.sermons.length) this.loadSermon(this.sermons.sermons[0].id);
+                    alert('Импорт успешен');
+                }
+            } catch (err) {
+                alert('Ошибка импорта: ' + err.message);
+            }
+            e.target.value = '';
+        },
+
+async getAssistance(mode) {
+    if (!this.currentSermonId) { this.displayError('Выберите проповедь'); return; }
+    
+    // Очищаем предыдущие ошибки
+    document.getElementById('error-message').classList.add('hidden');
+    
+    const passageInp = document.getElementById('passage');
+    const audience = document.getElementById('audience').value || CONFIG.DEFAULTS.AUDIENCE;
+
+    if (!this.validatePassage(passageInp) || !this.validateEditor()) {
+        this.displayError('Заполните отрывок и главную идею');
+        return;
+    }
+
+    const passage = passageInp.value.trim();
+    const draft = this.quill.getText().trim();
+
+    this.setLoading(true);
+    let query = '', section = '';
+    switch (mode) {
+        case CONFIG.ASSISTANCE_TYPES.EXEGESIS:
+            section = 'exegesis';
+            query = CONFIG.PROMPTS.EXEGESIS(passage, draft);
+            break;
+        case CONFIG.ASSISTANCE_TYPES.ILLUSTRATION:
+            section = 'illustrations';
+            query = CONFIG.PROMPTS.ILLUSTRATION(passage, draft, audience);
+            break;
+        case CONFIG.ASSISTANCE_TYPES.STRUCTURE:
+            section = 'structure';
+            query = CONFIG.PROMPTS.STRUCTURE(passage, draft, audience);
+            break;
+    }
+
+    const payload = {
+        model: CONFIG.API.MODEL,
+        messages: [
+            { role: "system", content: CONFIG.PROMPTS.SYSTEM },
+            { role: "user", content: query }
+        ],
+        temperature: CONFIG.API.TEMPERATURE,
+        max_tokens: CONFIG.API.MAX_TOKENS
+    };
+
+    for (let i = 0; i < CONFIG.API.MAX_RETRIES; i++) {
+        try {
+            const r = await fetch(CONFIG.API.URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${CONFIG.API.KEY}`
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!r.ok) {
+                if (r.status === 429 && i < CONFIG.API.MAX_RETRIES - 1) {
+                    await new Promise(res => setTimeout(res, Utils.getRetryDelay(i)));
+                    continue;
+                }
+                throw new Error(`API ${r.status}`);
+            }
+            const d = await r.json();
+            if (d.choices?.[0]?.message?.content) {
+                const txt = d.choices[0].message.content;
+                const s = this.sermons.sermons.find(x => x.id === this.currentSermonId);
+                if (s) {
+                    s.preparation[section] = { content: txt, ai_generated: true, date_generated: Utils.getCurrentISODate() };
+                    s.metadata.date_modified = Utils.getCurrentISODate();
+                    StorageManager.save(this.sermons);
+                    this.displayPreparationSection(mode, s.preparation[section]);
+                }
+                this.setLoading(false);
+                break;
+            }
+            throw new Error('Нет ответа');
+        } catch (e) {
+            console.error(e);
+            if (i === CONFIG.API.MAX_RETRIES - 1) {
+                this.displayError('Ошибка AI: ' + e.message);
+                this.setLoading(false);
+            }
+        }
+    }
+},
+        setLoading(flag) {
+            document.querySelectorAll('.btn-assist').forEach(b => b.disabled = flag);
+            document.getElementById('loading-indicator').classList.toggle('hidden', !flag);
+            document.getElementById('error-message').classList.add('hidden');
+        },
+
+        displayError(msg) {
+            const el = document.getElementById('error-message');
+            el.textContent = 'Ошибка: ' + msg;
+            el.classList.remove('hidden');
+        },
+
+        initEditor() {
+            const container = document.getElementById('editor');
+            if (!container) return console.error('#editor не найден');
+
+            this.quill = new Quill('#editor', {
+                theme: 'snow',
+                modules: {
+                    toolbar: {
+                        container: [
+                            [{ header: [1, 2, 3, false] }],
+                            ['bold', 'italic', 'underline'],
+                            [{ list: 'ordered' }, { list: 'bullet' }],
+                            ['link', 'clean', 'bible']
+                        ],
+                        handlers: {
+                            'bible': () => {
+                                this.openBibleModal();
+                            }
+                        }
+                    }
+                }
+            });
+
+            const bibleButton = document.querySelector('.ql-bible');
+            if (bibleButton) {
+                bibleButton.innerHTML = `
+                    <svg class="w-4 h-4 inline-block align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                    <span class="text-xs ml-1 align-middle">(Библия)</span>`;
+                bibleButton.title = 'Вставить стих из Писания';
+            }
+
+            this.quill.on('text-change', () => this.updateSermonMetadata());
+        },
+
+        insertToEditor(type) {
+            const map = {
+                exegesis: 'exegesis-content',
+                illustration: 'illustration-content',
+                structure: 'structure-content'
+            };
+            const el = document.getElementById(map[type]);
+            if (!el || !this.quill) {
+                this.displayError('Нет данных для вставки');
+                return;
+            }
+            const html = el.innerHTML.trim();
+            if (!html) {
+                this.displayError('Пусто');
+                return;
+            }
+            const range = this.quill.getSelection(true);
+            this.quill.clipboard.dangerouslyPasteHTML(range ? range.index : this.quill.getLength(), html);
+            this.updateSermonMetadata();
+        },
+
+        openBibleModal() {
+            document.getElementById('bible-modal').classList.remove('hidden');
+            document.getElementById('bible-reference').focus();
+        },
+
+        closeBibleModal() {
+            const m = document.getElementById('bible-modal');
+            if (m) m.classList.add('hidden');
+            const inp = document.getElementById('bible-reference');
+            if (inp) {
+                inp.value = '';
+                inp.setAttribute('aria-invalid', 'false');
+            }
+            document.getElementById('bible-reference-error').classList.add('hidden');
+        },
+
+        async fetchBibleVerse() {
+            const ref = document.getElementById('bible-reference');
+            const val = ref.value.trim();
+            if (!val) {
+                ref.setAttribute('aria-invalid', 'true');
+                document.getElementById('bible-reference-error').textContent = 'Пусто';
+                document.getElementById('bible-reference-error').classList.remove('hidden');
+                return;
+            }
+            if (!this.validatePassage(ref)) return;
+
+            const [ , chapterVerse ] = ref.value.split(' ');
+            const m = chapterVerse.match(/^(\d+)(?::(\d+)(?:-(\d+))?)?$/);
+            if (!m) return;
+            const [, c, s, e] = m;
+            const bookId = this.bookMap[Object.keys(this.bookMap).find(k => k.toLowerCase() === ref.value.split(' ')[0].toLowerCase())];
+
+            this.setLoading(true);
+            try {
+                let verses = [];
+                if (s && e) for (let v = +s; v <= +e; v++) verses.push(v);
+                else if (s) verses.push(+s);
+                else {
+                    const r = await fetch(`https://bolls.life/get-text/SYNOD/${bookId}/${c}/`);
+                    if (!r.ok) throw new Error('API');
+                    const d = await r.json();
+                    verses = d.map(x => x.verse);
+                }
+
+                const r = await fetch(`https://bolls.life/get-text/SYNOD/${bookId}/${c}/`);
+                if (!r.ok) throw new Error('API');
+                const data = await r.json();
+                let html = '';
+                verses.forEach(v => {
+                    const o = data.find(x => x.verse === v);
+                    if (o) html += `<p><strong>${ref.value.split(' ')[0]} ${c}:${v}:</strong> ${o.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`;
+                });
+                if (!html) throw new Error('Стихи не найдены');
+
+                const range = this.quill.getSelection(true);
+                this.quill.clipboard.dangerouslyPasteHTML(range ? range.index : this.quill.getLength(), html);
+                this.updateSermonMetadata();
+                this.closeBibleModal();
+            } catch (err) {
+                ref.setAttribute('aria-invalid', 'true');
+                document.getElementById('bible-reference-error').textContent = 'Не удалось загрузить: ' + err.message;
+                document.getElementById('bible-reference-error').classList.remove('hidden');
+            } finally {
+                this.setLoading(false);
+            }
+        },
+
+        exportToDocx() {
+            if (!this.currentSermonId) {
+                this.displayError('Выберите проповедь');
+                return;
+            }
+            const s = this.sermons.sermons.find(x => x.id === this.currentSermonId);
+            if (!s) {
+                this.displayError('Проповедь не найдена');
+                return;
+            }
+
+            const hasContent = s.metadata.title || s.metadata.passage || this.quill?.root?.innerHTML ||
+                               s.preparation.exegesis.content || s.preparation.illustrations.content || s.preparation.structure.content;
+            if (!hasContent) {
+                this.displayError('Проповедь пуста');
+                return;
+            }
+
+            const docxStyles = `
+                <style>
+                    @page { size: A4; margin: 1cm; }
+                    body { font-family: 'Inter', Arial, sans-serif; font-size: 8pt; line-height: 1.3; color: #1f2937; margin: 0; padding: 0 0.8cm; }
+                    h1 { font-size: 11pt; font-weight: 700; color: #111827; margin: 0.8em 0 0.4em; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.15em; }
+                    h2 { font-size: 10pt; font-weight: 600; color: #111827; margin: 0.7em 0 0.4em; }
+                    h3 { font-size: 9pt; font-weight: 500; color: #1f2937; margin: 0.6em 0 0.3em; }
+                    p { margin: 0 0 0.5em; text-align: justify; }
+                    ul, ol { margin: 0.5em 0; padding-left: 1em; }
+                    li { margin-bottom: 0.15em; font-size: 8pt; }
+                    strong { font-weight: 700; }
+                    .meta { margin-bottom: 1em; }
+                    .meta p { margin: 0.25em 0; font-size: 7.5pt; }
+                </style>
+            `;
+
+            const html = `
+                <!DOCTYPE html>
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/1999/xhtml">
+                <head><meta charset="UTF-8"><title>${this.escapeHtml(s.metadata.title || 'Проповедь')}</title>${docxStyles}</head>
+                <body>
+                    <h1>${this.escapeHtml(s.metadata.title || 'Без названия')}</h1>
+                    <div class="meta">
+                        <p><strong>Отрывок:</strong> ${this.escapeHtml(s.metadata.passage || '—')}</p>
+                        <p><strong>Аудитория:</strong> ${this.escapeHtml(s.metadata.audience || '—')}</p>
+                        <p><strong>Дата проповеди:</strong> ${Utils.formatDisplayDate(s.metadata.date_preached) || '—'}</p>
+                        <p><strong>Планируемая длительность:</strong> ${s.metadata.duration_planned || 30} мин</p>
+                    </div>
+                    <h2>Главная Идея</h2>
+                    ${this.quill?.root?.innerHTML ? this.sanitizeForDocx(this.quill.root.innerHTML) : '<p>—</p>'}
+                    <h2>Экзегетический Анализ</h2>
+                    ${s.preparation.exegesis.content ? this.sanitizeForDocx(Utils.formatMarkdown(s.preparation.exegesis.content)) : '<p>—</p>'}
+                    <h2>Идеи для Иллюстраций</h2>
+                    ${s.preparation.illustrations.content ? this.sanitizeForDocx(Utils.formatMarkdown(s.preparation.illustrations.content)) : '<p>—</p>'}
+                    <h2>Структура Проповеди</h2>
+                    ${s.preparation.structure.content ? this.sanitizeForDocx(Utils.formatMarkdown(s.preparation.structure.content)) : '<p>—</p>'}
+                </body>
+                </html>`;
+
+            try {
+                const blob = htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 } });
+                const filename = `Проповедь_${(s.metadata.title || 'БезНазвания').replace(/[^a-zA-Z0-9А-Яа-я]/g, '_')}_${Utils.getCurrentISODate().split('T')[0]}.docx`;
+                saveAs(blob, filename);
+            } catch (err) {
+                console.error('DOCX Export Error:', err);
+                this.displayError('Ошибка экспорта: ' + err.message);
+            }
+        },
+
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        },
+
+        sanitizeForDocx(html) {
+            return html
+                .replace(/<br>/gi, '<br/>')
+                .replace(/ class="[^"]*"/gi, '')
+                .replace(/ style="[^"]*"/gi, '')
+                .replace(/<p>\s*<\/p>/gi, '');
+        },
+
+        /* ---------- Help Modal ---------- */
+        openHelpModal() {
+            document.getElementById('help-modal').classList.remove('hidden');
+            this.switchHelpTab('overview');
+        },
+
+        closeHelpModal() {
+            document.getElementById('help-modal').classList.add('hidden');
+        },
+
+        switchHelpTab(tab) {
+            document.querySelectorAll('#help-content > div').forEach(d => d.classList.add('hidden'));
+            document.querySelectorAll('[id^="tab-"]').forEach(b => {
+                b.classList.remove('tab-active', 'border-[#2c7a7b]', 'text-[#2c7a7b]');
+                b.classList.add('tab-inactive', 'text-gray-600');
+            });
+
+            document.getElementById(`help-${tab}`).classList.remove('hidden');
+            const btn = document.getElementById(`tab-${tab}`);
+            btn.classList.remove('tab-inactive', 'text-gray-600');
+            btn.classList.add('tab-active', 'border-[#2c7a7b]', 'text-[#2c7a7b]');
+        }
+    };
+
+    window.onload = () => App.init();
+    window.addEventListener('beforeunload', e => {
+        StorageManager.save(App.sermons);
+        if (App.sermons.sermons.some(s => s.metadata.status === 'draft')) {
+            e.preventDefault();
+            e.returnValue = 'Есть черновики';
+        }
+    });
+</script>
+</body>
+</html>
