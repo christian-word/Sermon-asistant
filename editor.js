@@ -25,7 +25,7 @@ class EditorManager {
                         ['link', 'clean', 'bible']
                     ],
                     handlers: {
-                         'bible': () => App.openBibleFullModal()   // ← НОВЫЙ вызов
+                        handlers: { 'bible': () => App.openBibleFullModal() }
                     }
                 }
             }
