@@ -49,12 +49,14 @@ const Utils = {
     /**
      * Форматирует Markdown в HTML
      */
-    formatMarkdown(text) {
-        text = text.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-        text = text.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-        text = text.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
-        text = text.replace(/_(.*?)_/gim, '<em>$1</em>');
-        text = text.replace(/^\* (.*$)/gim, '<li>$1</li>');
+formatMarkdown(text) {
+    text = text.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    text = text.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    text = text.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+    text = text.replace(/_(.*?)_/gim, '<em>$1</em>');
+    // ↓↓↓ гиперссылки ↓↓↓
+    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    text = text.replace(/^\* (.*$)/gim, '<li>$1</li>');
         
         const blocks = text.split(/(\r\n|\r|\n){2,}/);
         let html = '';
