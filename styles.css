@@ -1,0 +1,357 @@
+/* styles.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
+:root {
+  --font-main: 'Inter', sans-serif;
+  --text-color: #1f2937;
+  --heading-color: #111827;
+  --font-base: 1.125rem;
+  --font-h1: 1.5rem;
+  --font-h2: 1.25rem;
+  --font-h3: 1.125rem;
+  --line-height: 1.6;
+  --color-primary: #2c7a7b;
+  --color-primary-hover: #235d5e;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: #f7f9fb;
+  margin: 0;
+  padding: 0;
+}
+
+/* === Quill Editor === */
+.ql-editor {
+  font-family: var(--font-main) !important;
+  font-size: var(--font-base) !important;
+  line-height: var(--line-height) !important;
+  color: var(--text-color) !important;
+  padding: 0 !important;
+}
+.ql-editor h1 {
+  font-size: var(--font-h1);
+  font-weight: 700;
+  color: var(--heading-color);
+  margin: 1em 0 0.5em;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.2em;
+}
+.ql-editor h2 {
+  font-size: var(--font-h2);
+  font-weight: 600;
+  color: var(--heading-color);
+  margin: 1em 0 0.5em;
+}
+.ql-editor h3 {
+  font-size: var(--font-h3);
+  font-weight: 500;
+  color: var(--text-color);
+  margin: 1em 0 0.5em;
+}
+.ql-editor p { margin-bottom: 0.75em; }
+.ql-editor ul, .ql-editor ol {
+  margin-left: 1.25rem;
+  margin-bottom: 0.75em;
+}
+.ql-editor li {
+  margin-bottom: 0.25em;
+  padding-left: 0.25em;
+}
+
+/* === AI Content Blocks === */
+#exegesis-content, #illustration-content, #structure-content,
+.ai-content-panel .text-sm.prose {
+  font-family: var(--font-main);
+  font-size: var(--font-base);
+  line-height: var(--line-height);
+  color: var(--text-color);
+}
+#exegesis-content h1, #illustration-content h1, #structure-content h1,
+.ai-content-panel h1 {
+  font-size: var(--font-h1);
+  font-weight: 700;
+  color: var(--heading-color);
+  margin: 1em 0 0.5em;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.2em;
+}
+#exegesis-content h2, #illustration-content h2, #structure-content h2,
+.ai-content-panel h2 {
+  font-size: var(--font-h2);
+  font-weight: 600;
+  color: var(--heading-color);
+  margin: 1em 0 0.5em;
+}
+#exegesis-content h3, #illustration-content h3, #structure-content h3,
+.ai-content-panel h3 {
+  font-size: var(--font-h3);
+  font-weight: 500;
+  color: var(--text-color);
+  margin: 1em 0 0.5em;
+}
+#exegesis-content p, #illustration-content p, #structure-content p,
+.ai-content-panel p {
+  margin-bottom: 0.75em;
+}
+#exegesis-content ul, #exegesis-content ol,
+#illustration-content ul, #illustration-content ol,
+#structure-content ul, #structure-content ol,
+.ai-content-panel ul, .ai-content-panel ol {
+  list-style-type: disc;
+  margin-left: 1.25rem;
+  margin-bottom: 0.75em;
+}
+#exegesis-content li, #illustration-content li, #structure-content li,
+.ai-content-panel li {
+  margin-bottom: 0.25em;
+  padding-left: 0.25em;
+}
+
+/* === Components === */
+.assistant-card {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+.btn-assist {
+  background-color: var(--color-primary);
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+.btn-assist:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+.btn-assist:disabled {
+  background-color: #81c7c7;
+  cursor: not-allowed;
+}
+.loading-spinner {
+  border: 3px solid #e5e7eb;
+  border-top-color: var(--color-primary);
+  animation: spin 0.8s linear infinite;
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0 auto 0.5rem;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.sermon-item {
+  transition: all 0.2s;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 0.375rem;
+}
+.sermon-item:hover {
+  background-color: #e0f2f1;
+  transform: translateX(3px);
+}
+.sermon-item.active {
+  background-color: #b2dfdb;
+  border-left: 3px solid var(--color-primary);
+}
+.status-badge {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+.status-draft { background-color: #fef3c7; color: #92400e; }
+.status-ready { background-color: #dbeafe; color: #1e40af; }
+.status-preached { background-color: #d1fae5; color: #065f46; }
+.status-archived { background-color: #f3f4f6; color: #6b7280; }
+input[aria-invalid="true"], select[aria-invalid="true"] {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+.tooltip { position: relative; }
+.tooltip .tooltip-text {
+  visibility: hidden;
+  width: 200px;
+  background-color: #374151;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px;
+  position: absolute;
+  z-index: 10;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -100px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 0.75rem;
+}
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* === Header Buttons === */
+#sermon-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+#sermon-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+  min-height: 2rem;
+  border: 2px solid transparent;
+}
+#sermon-actions button svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-right: 0.375rem;
+  flex-shrink: 0;
+}
+#sermon-actions .btn-help {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #d1d5db;
+}
+#sermon-actions .btn-help:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+#sermon-actions .btn-delete {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+#sermon-actions .btn-delete:hover {
+  background: #fecaca;
+  border-color: #ef4444;
+}
+#sermon-actions .btn-save {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+#sermon-actions .btn-save:hover {
+  background: #a7f3d0;
+  border-color: #34d399;
+}
+#sermon-actions .btn-export {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+#sermon-actions .btn-export:hover {
+  background: #bfdbfe;
+  border-color: #60a5fa;
+}
+
+/* === Bible Button in Quill === */
+.ql-toolbar .ql-bible {
+  background-color: var(--color-primary) !important;
+  color: white !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  margin: 0 2px !important;
+  transition: all 0.2s ease !important;
+  min-width: 65px !important;
+  width: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.ql-toolbar .ql-bible:hover {
+  background-color: var(--color-primary-hover) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 2px 8px rgba(44, 122, 123, 0.4) !important;
+}
+.ql-toolbar .ql-bible svg { stroke: white !important; }
+.ql-toolbar .ql-bible span {
+  white-space: nowrap !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+/* === Tabs === */
+.tab-active {
+  border-bottom: 2px solid var(--color-primary) !important;
+  color: var(--color-primary) !important;
+  font-weight: 600 !important;
+}
+.tab-inactive {
+  border-color: transparent !important;
+  color: #6b7280 !important;
+}
+.tab-inactive:hover {
+  color: var(--color-primary) !important;
+}
+.ai-tab {
+  border-bottom: 2px solid transparent;
+  color: #6b7280;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.ai-tab:hover {
+  color: var(--color-primary);
+}
+.ai-tab-active {
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+  font-weight: 600 !important;
+}
+.ai-content-panel {
+  display: none;
+}
+.ai-content-panel.active {
+  display: block;
+}
+
+/* === Modals === */
+#bible-modal, #custom-prompt-modal, #help-modal {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+#bible-modal.hidden,
+#custom-prompt-modal.hidden,
+#help-modal.hidden {
+  display: none;
+}
+
+/* === Responsive === */
+@media (max-width: 640px) {
+  #sidebar { width: 220px; }
+  .assistant-card { padding: 0.75rem; }
+  input, select { font-size: 0.875rem; padding: 0.5rem; }
+  #editor { height: 350px !important; }
+  .tooltip .tooltip-text {
+    width: 150px;
+    margin-left: -75px;
+  }
+  #sermon-actions { justify-content: center; }
+}
