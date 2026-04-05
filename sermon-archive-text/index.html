@@ -195,6 +195,53 @@
 
         .info-count { font-size: 0.77rem; color: var(--text-hint); padding-left: 4px; }
 
+        /* ─── TEXT SEARCH ─── */
+        .txt-search-wrap {
+            display: flex; align-items: center; gap: 5px;
+            background: var(--bg-header);
+            border: 1px solid var(--border-lt);
+            border-radius: 18px;
+            padding: 4px 10px;
+            transition: border-color 0.15s;
+        }
+        .txt-search-wrap:focus-within { border-color: var(--accent); }
+        .txt-search-wrap svg { color: var(--text-hint); flex-shrink: 0; }
+        .txt-search-wrap input {
+            background: none; border: none; outline: none;
+            color: var(--text-main); font-size: 0.82rem;
+            font-family: inherit; width: 130px;
+        }
+        .txt-search-wrap input::placeholder { color: var(--text-hint); }
+        .txt-search-count {
+            font-size: 0.72rem; color: var(--text-hint);
+            white-space: nowrap; min-width: 32px;
+        }
+        .txt-search-nav {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-dim); padding: 2px 3px;
+            display: flex; align-items: center;
+            border-radius: 3px; transition: color 0.1s, background 0.1s;
+        }
+        .txt-search-nav:hover { color: var(--accent); background: var(--accent-dim); }
+        .txt-search-clear {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-hint); font-size: 0.7rem; padding: 0 2px;
+            line-height: 1; transition: color 0.1s;
+        }
+        .txt-search-clear:hover { color: var(--text-main); }
+
+        mark.hl {
+            background: #f5c842;
+            color: #1a1a1a;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+        mark.hl.hl-current {
+            background: #ff9800;
+            color: #fff;
+            outline: 2px solid #ff9800;
+        }
+
         /* ─── TOOLBAR ─── */
         .toolbar {
             display: none; align-items: center; gap: 8px;
@@ -448,6 +495,18 @@
                     <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                     Скопировать
                 </button>
+                <div class="txt-search-wrap" id="txt-search-wrap">
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="txtSearch" placeholder="Поиск в тексте…" oninput="searchText()" onkeydown="searchTextNav(event)">
+                    <span class="txt-search-count" id="txtSearchCount"></span>
+                    <button class="txt-search-nav" onclick="searchTextStep(-1)" title="Назад">
+                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="18,15 12,9 6,15"/></svg>
+                    </button>
+                    <button class="txt-search-nav" onclick="searchTextStep(1)" title="Вперёд">
+                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6,9 12,15 18,9"/></svg>
+                    </button>
+                    <button class="txt-search-clear" onclick="clearTextSearch()" title="Очистить">✕</button>
+                </div>
                 <span class="info-count" id="info-count"></span>
             </div>
         </div>
@@ -562,6 +621,63 @@ function filterMenu() {
     renderMenu(filteredDb);
 }
 
+let txtMatches = [], txtMatchIdx = 0;
+
+function searchText() {
+    const q = document.getElementById('txtSearch').value.trim();
+    const countEl = document.getElementById('txtSearchCount');
+
+    // Clear previous highlights
+    document.querySelectorAll('.txt-col mark.hl').forEach(m => {
+        m.outerHTML = m.textContent;
+    });
+    txtMatches = [];
+    txtMatchIdx = 0;
+
+    if (!q) { countEl.textContent = ''; return; }
+
+    const cols = document.querySelectorAll('.txt-col');
+    cols.forEach(col => {
+        const text = col.textContent;
+        const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        col.innerHTML = text.replace(re, m => `<mark class="hl">${m}</mark>`);
+    });
+
+    txtMatches = Array.from(document.querySelectorAll('.txt-col mark.hl'));
+    countEl.textContent = txtMatches.length ? `1/${txtMatches.length}` : '0';
+
+    if (txtMatches.length) {
+        txtMatchIdx = 0;
+        highlightCurrent();
+    }
+}
+
+function highlightCurrent() {
+    txtMatches.forEach(m => m.classList.remove('hl-current'));
+    if (!txtMatches.length) return;
+    const cur = txtMatches[txtMatchIdx];
+    cur.classList.add('hl-current');
+    cur.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('txtSearchCount').textContent = `${txtMatchIdx + 1}/${txtMatches.length}`;
+}
+
+function searchTextStep(dir) {
+    if (!txtMatches.length) return;
+    txtMatchIdx = (txtMatchIdx + dir + txtMatches.length) % txtMatches.length;
+    highlightCurrent();
+}
+
+function searchTextNav(e) {
+    if (e.key === 'Enter') searchTextStep(e.shiftKey ? -1 : 1);
+    if (e.key === 'Escape') clearTextSearch();
+}
+
+function clearTextSearch() {
+    document.getElementById('txtSearch').value = '';
+    searchText();
+    document.getElementById('txtSearch').focus();
+}
+
 function goBackToMenu() {
     document.body.classList.remove('sermon-loaded');
     if (isReading) toggleReading();
@@ -608,6 +724,11 @@ function load(idx, el) {
         </div>`).join('');
 
     document.querySelector('.content-wrap').scrollTop = 0;
+
+    // Clear text search
+    document.getElementById('txtSearch').value = '';
+    document.getElementById('txtSearchCount').textContent = '';
+    txtMatches = []; txtMatchIdx = 0;
 
     // On mobile: show main panel
     document.body.classList.add('sermon-loaded');
