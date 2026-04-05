@@ -137,6 +137,26 @@
             width: 390px;
         }
 
+        .player-close {
+            display: none;
+            position: absolute;
+            top: 6px; right: 6px;
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #ccc;
+            cursor: pointer;
+            align-items: center; justify-content: center;
+            transition: background 0.15s, color 0.15s;
+            z-index: 5;
+        }
+        .player-close:hover { background: rgba(220,60,60,0.8); color: #fff; border-color: transparent; }
+
+        body.video-visible .player-close { display: flex; }
+
+        .player-area { position: relative; }
+
         #yt-player { display: block; }
 
         .info-panel {
@@ -408,6 +428,11 @@
     <div class="player-bar" id="player-bar">
         <div class="player-area" id="player-area">
             <div id="yt-player"></div>
+            <button class="player-close" onclick="closePlayer()" title="Закрыть плеер">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
         </div>
         <div class="info-panel">
             <span class="info-eyebrow">Проповедь</span>
@@ -589,6 +614,12 @@ function load(idx, el) {
 
     // Exit reading mode when switching sermons so sidebar is visible
     if (isReading) toggleReading();
+}
+
+function closePlayer() {
+    document.body.classList.remove('video-visible');
+    if (player) player.pauseVideo();
+    document.querySelectorAll('.row').forEach(r => r.classList.remove('current'));
 }
 
 function seek(s) {
