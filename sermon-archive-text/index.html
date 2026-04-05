@@ -1,0 +1,560 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Архив Проповедей</title>
+    <meta property="og:image" content="ico.png">
+    <style>
+        :root {
+            --bg-main:    #1a1f2e;
+            --bg-sidebar: #1f2538;
+            --bg-header:  #141928;
+            --bg-hover:   #222840;
+            --bg-active:  #1a2d45;
+            --border:     #2d3450;
+            --border-lt:  #353d5e;
+            --accent:     #3ea6ff;
+            --accent-dim: rgba(62,166,255,0.13);
+            --accent-brd: rgba(62,166,255,0.22);
+            --text-main:  #e8eaf6;
+            --text-dim:   #8b95be;
+            --text-hint:  #4f5a7a;
+            --sidebar-w:  370px;
+            --transition: 0.28s cubic-bezier(.4,0,.2,1);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg-main);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            font-size: 14px;
+        }
+
+        /* ─── SIDEBAR ─── */
+        .sidebar {
+            width: var(--sidebar-w);
+            min-width: var(--sidebar-w);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: width var(--transition), min-width var(--transition), opacity var(--transition);
+            overflow: hidden;
+        }
+
+        body.reading .sidebar {
+            width: 0;
+            min-width: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .sidebar-header {
+            padding: 16px 20px 14px;
+            background: var(--bg-header);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+            white-space: nowrap;
+        }
+        .sidebar-header svg { color: var(--accent); flex-shrink: 0; }
+        .sidebar-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--text-main); }
+
+        .search-wrap { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+        .search-inner {
+            display: flex; align-items: center;
+            background: var(--bg-header);
+            border: 1px solid var(--border-lt);
+            border-radius: 20px; overflow: hidden;
+            transition: border-color 0.15s;
+        }
+        .search-inner:focus-within { border-color: var(--accent); }
+        .search-inner svg { margin: 0 10px; color: var(--text-hint); flex-shrink: 0; }
+        .search-inner input {
+            flex: 1; background: none; border: none;
+            color: var(--text-main); font-size: 0.85rem;
+            padding: 8px 12px 8px 0; outline: none; font-family: inherit;
+        }
+        .search-inner input::placeholder { color: var(--text-hint); }
+
+        .list-info {
+            padding: 8px 16px 6px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .list-info-label {
+            font-size: 0.7rem; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-hint);
+        }
+        .count-pill {
+            background: var(--accent-dim); color: var(--accent);
+            border: 1px solid var(--accent-brd);
+            padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 500;
+        }
+
+        .list { overflow-y: auto; flex: 1; }
+
+        .item {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(45,52,80,0.6);
+            cursor: pointer; transition: background 0.15s;
+        }
+        .item:hover { background: var(--bg-hover); }
+        .item.active {
+            background: var(--bg-active);
+            border-left: 3px solid var(--accent);
+            padding-left: 13px;
+        }
+        .item-title { font-size: 0.875rem; font-weight: 500; color: var(--text-main); line-height: 1.35; margin-bottom: 4px; }
+        .item.active .item-title { color: #65b8ff; }
+        .item-meta { display: flex; align-items: center; gap: 6px; font-size: 0.77rem; color: var(--text-dim); }
+        .item-sep { color: var(--border-lt); }
+
+        /* ─── MAIN ─── */
+        .main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+        /* ─── PLAYER BAR ─── */
+        .player-bar {
+            background: var(--bg-header);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            transition: height var(--transition);
+        }
+
+        .player-area {
+            flex-shrink: 0; width: 0; overflow: hidden;
+            background: #0d1117;
+            display: flex; align-items: center; justify-content: center;
+            transition: width var(--transition);
+        }
+
+        /* Video shown only when a timecode is clicked */
+        body.video-visible .player-area {
+            width: 390px;
+        }
+
+        #yt-player { display: block; }
+
+        .info-panel {
+            flex: 1; padding: 18px 24px;
+            display: flex; flex-direction: column; justify-content: center;
+            gap: 5px; min-width: 0;
+        }
+
+        .info-eyebrow {
+            font-size: 0.68rem; font-weight: 600;
+            letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent);
+        }
+
+        #v-title {
+            font-size: 1.2rem; font-weight: 600;
+            line-height: 1.25; color: var(--text-hint);
+        }
+        #v-author { font-size: 0.82rem; color: var(--text-dim); }
+
+        .info-divider { width: 32px; height: 1px; background: var(--border-lt); margin: 2px 0; display: none; }
+
+        .info-actions { display: none; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+        .chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 5px 12px; border-radius: 18px;
+            font-size: 0.77rem; font-weight: 500; cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            border: none; font-family: inherit;
+        }
+        .chip-blue { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-brd); }
+        .chip-blue:hover { background: var(--accent); color: #0d1117; }
+        .chip-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border-lt); }
+        .chip-ghost:hover { background: var(--bg-hover); color: var(--text-main); border-color: var(--text-dim); }
+        .chip-active { background: rgba(62,166,255,0.25); color: #65b8ff; border: 1px solid var(--accent-brd); }
+
+        .info-count { font-size: 0.77rem; color: var(--text-hint); padding-left: 4px; }
+
+        /* ─── TOOLBAR ─── */
+        .toolbar {
+            display: none; align-items: center; gap: 8px;
+            padding: 8px 16px; border-bottom: 1px solid var(--border);
+            background: var(--bg-sidebar);
+        }
+        .toolbar-label {
+            font-size: 0.7rem; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-hint);
+            margin-right: auto;
+        }
+        .toolbar-group {
+            display: flex; background: var(--bg-header);
+            border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+        }
+        .tool-btn {
+            padding: 4px 10px; background: none; border: none;
+            color: var(--text-dim); cursor: pointer; font-size: 0.75rem;
+            font-family: inherit; transition: background 0.1s, color 0.1s;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .tool-btn.active, .tool-btn:hover { background: var(--accent-dim); color: var(--accent); }
+        .tool-btn + .tool-btn { border-left: 1px solid var(--border); }
+
+        /* Reading mode button glow when active */
+        .tool-btn.reading-on { background: rgba(62,166,255,0.22); color: var(--accent); }
+
+        /* ─── CONTENT ─── */
+        .content-wrap { flex: 1; overflow-y: auto; }
+
+        body.reading .content-wrap { max-width: 800px; margin: 0 auto; }
+
+        .empty-state {
+            height: 100%; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 12px; text-align: center; padding: 48px 24px;
+        }
+        .empty-icon {
+            width: 60px; height: 60px; border-radius: 50%;
+            border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+        }
+        .empty-state h3 { font-size: 1rem; font-weight: 500; color: var(--text-dim); }
+        .empty-state p { font-size: 0.82rem; max-width: 280px; line-height: 1.6; color: var(--text-hint); }
+
+        #catalog { padding: 0; }
+
+        .row {
+            display: grid; grid-template-columns: 76px 1fr;
+            border-bottom: 1px solid rgba(45,52,80,0.5);
+            transition: background 0.12s;
+        }
+        .row:hover { background: var(--bg-hover); }
+
+        .t-col {
+            padding: 17px 8px 14px 12px;
+            display: flex; align-items: flex-start; justify-content: center;
+        }
+
+        .t-btn {
+            display: flex; align-items: center; gap: 4px;
+            padding: 3px 9px 3px 7px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-brd);
+            border-radius: 4px; color: var(--accent);
+            font-family: monospace; font-size: 0.8rem;
+            cursor: pointer; transition: background 0.12s, color 0.12s;
+            white-space: nowrap;
+        }
+        .t-btn:hover { background: var(--accent); color: #0d1117; border-color: var(--accent); }
+
+        .txt-col {
+            padding: 15px 20px 15px 4px;
+            line-height: 1.75; font-size: 0.93rem; color: #9aa3c8;
+        }
+
+        body.reading .txt-col {
+            font-size: 1rem;
+            line-height: 1.85;
+            color: #b8c0de;
+            padding-right: 32px;
+        }
+
+        .row.current .t-btn { background: var(--accent); color: #0d1117; border-color: var(--accent); }
+        .row.current .txt-col { color: var(--text-main); }
+        .row.current { background: rgba(62,166,255,0.06); }
+
+        body.font-large .txt-col { font-size: 1.05rem; }
+        body.compact .txt-col { padding-top: 10px; padding-bottom: 10px; font-size: 0.86rem; line-height: 1.55; }
+        body.compact .t-col { padding-top: 12px; }
+
+        .no-results { padding: 24px 16px; text-align: center; color: var(--text-hint); font-size: 0.82rem; line-height: 1.6; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-lt); }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%;
+            transform: translateX(-50%) translateY(12px);
+            background: var(--bg-sidebar); border: 1px solid var(--border-lt);
+            color: var(--text-main);
+            padding: 7px 16px; border-radius: 20px; font-size: 0.78rem;
+            opacity: 0; transition: opacity 0.25s, transform 0.25s;
+            pointer-events: none; z-index: 999;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .row { animation: rowIn 0.25s ease both; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+        <h1>Архив проповедей</h1>
+    </div>
+    <div class="search-wrap">
+        <div class="search-inner">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Поиск по названию или автору…" oninput="filterMenu()">
+        </div>
+    </div>
+    <div class="list-info">
+        <span class="list-info-label">Список</span>
+        <span class="count-pill" id="count-badge">0</span>
+    </div>
+    <div class="list" id="menu"></div>
+</div>
+
+<div class="main">
+    <div class="player-bar" id="player-bar">
+        <div class="player-area" id="player-area">
+            <div id="yt-player"></div>
+        </div>
+        <div class="info-panel">
+            <span class="info-eyebrow">Проповедь</span>
+            <h2 id="v-title">Выберите проповедь из списка</h2>
+            <div id="v-author"></div>
+            <div class="info-divider" id="info-divider"></div>
+            <div class="info-actions" id="info-actions">
+                <button class="chip chip-blue" onclick="scrollToTop()">
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="18,15 12,9 6,15"/></svg>
+                    В начало
+                </button>
+                <button class="chip chip-ghost" onclick="copySermon()">
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    Скопировать
+                </button>
+                <span class="info-count" id="info-count"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="toolbar" id="toolbar">
+        <span class="toolbar-label">Транскрипт</span>
+        <div class="toolbar-group">
+            <button class="tool-btn active" onclick="setFont('normal',this)">Aa</button>
+            <button class="tool-btn" onclick="setFont('large',this)">A+</button>
+        </div>
+        <div class="toolbar-group">
+            <button class="tool-btn active" id="v-normal" onclick="setView('normal')">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <button class="tool-btn" id="v-compact" onclick="setView('compact')">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
+            </button>
+        </div>
+        <div class="toolbar-group">
+            <button class="tool-btn" id="btn-reading" onclick="toggleReading()" title="Режим чтения">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                Читать
+            </button>
+        </div>
+    </div>
+
+    <div class="content-wrap">
+        <div id="catalog">
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2d3450" stroke-width="1.5">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <h3>Архив проповедей</h3>
+                <p>Выберите проповедь из списка слева, чтобы просмотреть транскрипт и видеозапись</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+let db = [], filteredDb = [];
+let player, ytReady = false, pendingId = null, currentIdx = null;
+let isReading = false;
+
+fetch('database.json')
+    .then(r => r.json())
+    .then(data => { db = filteredDb = data; renderMenu(db); })
+    .catch(() => loadDemo());
+
+function loadDemo() {
+    db = [
+        { title: "Путь к Богу через испытания", author: "Пастор Иван Петров", id: "dQw4w9WgXcQ",
+          data: [
+            { t:"0:00", s:0, c:"Братья и сёстры, сегодня мы обратимся к книге Иова — к человеку, прошедшему через величайшие испытания и не потерявшему веры." },
+            { t:"2:15", s:135, c:"Иов потерял всё: имущество, детей, здоровье. Но в сердце его не погасла искра доверия к Богу. Это удивительный пример стойкости духа." },
+            { t:"5:40", s:340, c:"Когда приходят испытания, мы должны помнить: Бог не забыл нас. Он видит каждую слезу, знает каждую боль нашего сердца." },
+            { t:"9:10", s:550, c:"В конце Иов говорит: «Я слышал о Тебе слухом уха; теперь же мои глаза видят Тебя». Испытание привело его к личной встрече с Богом." },
+            { t:"14:30", s:870, c:"И Господь восстановил Иова. Не потому что тот заслужил это, а потому что Бог верен в Своей любви. Это суть Евангелия." }
+          ]
+        },
+        { title: "Нагорная проповедь: заповеди блаженства", author: "Епископ Андрей Тимофеев", id: "dQw4w9WgXcQ",
+          data: [
+            { t:"0:00", s:0, c:"«Блаженны нищие духом, ибо их есть Царство Небесное» — так начинает Христос Своё величайшее слово к людям." },
+            { t:"3:20", s:200, c:"Нищета духа — это осознание своей зависимости от Бога. Тот, кто считает себя самодостаточным, закрывает дверь Царства Небесного." },
+            { t:"7:45", s:465, c:"«Блаженны кроткие» — кротость не есть слабость. Кротость — это сила, обузданная любовью. Это Христос, умывающий ноги ученикам." },
+            { t:"12:00", s:720, c:"«Блаженны чистые сердцем, ибо они Бога узрят» — не глазами тела, но сердцем. Чистота сердца — это прозрачность для Бога." },
+            { t:"18:30", s:1110, c:"Заповеди блаженства — это не правила для будущего. Это описание того, кем мы становимся, когда Христос живёт в нас." }
+          ]
+        },
+        { title: "Сила молитвы и личное общение с Богом", author: "Пастор Иван Петров", id: "dQw4w9WgXcQ",
+          data: [
+            { t:"0:00", s:0, c:"Молитва — это не монолог человека в пустоту. Это живой диалог с Тем, Кто знает нас прежде рождения и любит нас вечной любовью." },
+            { t:"4:10", s:250, c:"Иисус молился рано утром, один, в уединённых местах. Он, будучи Богом, нуждался в общении с Отцом. Тем более — мы." },
+            { t:"8:30", s:510, c:"«Просите, и дано будет вам» — это не заклинание и не магия. Это обещание Отца, Который хочет давать доброе просящим у Него." },
+            { t:"14:00", s:840, c:"Молитва меняет нас. Когда мы приходим к Богу с открытым сердцем, Его свет освещает наши тёмные углы, и мы становимся другими." }
+          ]
+        }
+    ];
+    filteredDb = db;
+    renderMenu(db);
+}
+
+function renderMenu(data) {
+    document.getElementById('count-badge').textContent = data.length;
+    const el = document.getElementById('menu');
+    if (!data.length) {
+        el.innerHTML = '<div class="no-results">Ничего не найдено.<br>Попробуйте другой запрос.</div>';
+        return;
+    }
+    el.innerHTML = data.map(s => {
+        const i = db.indexOf(s);
+        return `<div class="item${i===currentIdx?' active':''}" onclick="load(${i},this)">
+            <div class="item-title">${s.title}</div>
+            <div class="item-meta">
+                <span>${s.author}</span>
+                <span class="item-sep">•</span>
+                <span>${s.data.length} фр.</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterMenu() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    filteredDb = db.filter(s => s.title.toLowerCase().includes(q) || s.author.toLowerCase().includes(q));
+    renderMenu(filteredDb);
+}
+
+function load(idx, el) {
+    const s = db[idx];
+    currentIdx = idx;
+
+    document.querySelectorAll('.item').forEach(c => c.classList.remove('active'));
+    if (el) el.classList.add('active');
+
+    const title = document.getElementById('v-title');
+    title.textContent = s.title;
+    title.style.color = 'var(--text-main)';
+    document.getElementById('v-author').textContent = s.author;
+    document.getElementById('info-divider').style.display = 'block';
+    document.getElementById('info-actions').style.display = 'flex';
+    document.getElementById('info-count').textContent = s.data.length + ' фрагментов';
+    document.getElementById('toolbar').style.display = 'flex';
+
+    // Init player lazily (no autoplay) — ready for timecode seeks
+    if (!player && ytReady) {
+        player = new YT.Player('yt-player', {
+            height: '230', width: '390',
+            videoId: s.id,
+            playerVars: { rel: 0, modestbranding: 1, autoplay: 0 }
+        });
+    } else if (player) {
+        player.cueVideoById(s.id); // load but don't play
+    } else {
+        pendingId = s.id;
+    }
+
+    document.getElementById('catalog').innerHTML = s.data.map((item, i) => `
+        <div class="row" style="animation-delay:${i*0.03}s" data-s="${item.s}">
+            <div class="t-col">
+                <button class="t-btn" onclick="seek(${item.s})">
+                    <svg width="7" height="7" fill="currentColor" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+                    ${item.t}
+                </button>
+            </div>
+            <div class="txt-col">${item.c}</div>
+        </div>`).join('');
+
+    document.querySelector('.content-wrap').scrollTop = 0;
+
+    // Exit reading mode when switching sermons so sidebar is visible
+    if (isReading) toggleReading();
+}
+
+function seek(s) {
+    if (!player) return;
+
+    // Show player area on first seek
+    document.body.classList.add('video-visible');
+
+    player.seekTo(s, true);
+    player.playVideo();
+
+    document.querySelectorAll('.row').forEach(r => r.classList.toggle('current', +r.dataset.s === s));
+    const cur = document.querySelector('.row.current');
+    if (cur) cur.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    showToast('▶ ' + Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'));
+}
+
+function onYouTubeIframeAPIReady() {
+    ytReady = true;
+    if (pendingId) {
+        player = new YT.Player('yt-player', {
+            height: '230', width: '390',
+            videoId: pendingId,
+            playerVars: { rel: 0, modestbranding: 1, autoplay: 0 }
+        });
+        pendingId = null;
+    }
+}
+
+function toggleReading() {
+    isReading = !isReading;
+    document.body.classList.toggle('reading', isReading);
+    const btn = document.getElementById('btn-reading');
+    btn.classList.toggle('reading-on', isReading);
+    showToast(isReading ? 'Режим чтения включён' : 'Режим чтения выключен');
+}
+
+function setFont(type, btn) {
+    document.body.classList.toggle('font-large', type === 'large');
+    btn.closest('.toolbar-group').querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function setView(mode) {
+    document.body.classList.toggle('compact', mode === 'compact');
+    document.getElementById('v-normal').classList.toggle('active', mode === 'normal');
+    document.getElementById('v-compact').classList.toggle('active', mode === 'compact');
+}
+
+function scrollToTop() { document.querySelector('.content-wrap').scrollTop = 0; }
+
+function copySermon() {
+    if (currentIdx !== null) {
+        const s = db[currentIdx];
+        navigator.clipboard.writeText(s.title + ' — ' + s.author).then(() => showToast('Скопировано'));
+    }
+}
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
