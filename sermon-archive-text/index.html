@@ -24,6 +24,76 @@
             --transition: 0.28s cubic-bezier(.4,0,.2,1);
         }
 
+        body.theme-dim {
+            --bg-main:    #2c313d;
+            --bg-sidebar: #323849;
+            --bg-header:  #272c3a;
+            --bg-hover:   #363c50;
+            --bg-active:  #2e3f56;
+            --border:     #424a62;
+            --border-lt:  #4e5870;
+            --accent:     #5bb8ff;
+            --accent-dim: rgba(91,184,255,0.13);
+            --accent-brd: rgba(91,184,255,0.25);
+            --text-main:  #d8ddf0;
+            --text-dim:   #9ba5cc;
+            --text-hint:  #666f90;
+        }
+
+        body.theme-light {
+            --bg-main:    #f0f2f7;
+            --bg-sidebar: #ffffff;
+            --bg-header:  #e8ebf2;
+            --bg-hover:   #eaecf5;
+            --bg-active:  #ddeaf8;
+            --border:     #d0d5e8;
+            --border-lt:  #b8c0d8;
+            --accent:     #1a7fd4;
+            --accent-dim: rgba(26,127,212,0.10);
+            --accent-brd: rgba(26,127,212,0.25);
+            --text-main:  #1e2340;
+            --text-dim:   #4a5278;
+            --text-hint:  #8b94b8;
+        }
+
+        body.theme-light .txt-col { color: #3a4268; }
+        body.theme-light .row.current .txt-col { color: #1e2340; }
+        body.theme-light .an-text { color: #3a4268; }
+        body.theme-light .an-list li { color: #3a4268; }
+        body.theme-light .an-quote { color: #4a5278; }
+        body.theme-light mark.hl { background: #ffe066; color: #1e2340; }
+        body.theme-light mark.hl.hl-current { background: #ff9800; color: #fff; }
+        body.theme-light .t-btn { background: var(--accent-dim); }
+        body.theme-light ::-webkit-scrollbar-thumb { background: #c0c8de; }
+        body.theme-light ::-webkit-scrollbar-thumb:hover { background: #a8b2cc; }
+
+        /* ─── THEME TOGGLE ─── */
+        .theme-toggle {
+            margin-left: auto;
+            display: flex; align-items: center;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 3px;
+            gap: 1px;
+            flex-shrink: 0;
+        }
+        .theme-btn {
+            width: 26px; height: 20px;
+            border-radius: 14px;
+            border: none; cursor: pointer;
+            background: none;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-hint);
+            font-size: 11px;
+            transition: background 0.15s, color 0.15s;
+        }
+        .theme-btn.active {
+            background: var(--border-lt);
+            color: var(--text-main);
+        }
+        .theme-btn:hover:not(.active) { color: var(--text-dim); }
+
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
@@ -268,11 +338,89 @@
             outline: 2px solid #ff9800;
         }
 
-        /* ─── TOOLBAR ─── */
-        .toolbar {
-            display: none; align-items: center; gap: 8px;
-            padding: 8px 16px; border-bottom: 1px solid var(--border);
+        /* ─── ANALYSIS PANEL ─── */
+        #analysis-panel {
+            padding: 20px 24px 40px;
+            max-width: 800px;
+        }
+        body.reading #analysis-panel { margin: 0 auto; }
+
+        .an-section {
+            margin-bottom: 22px;
+            animation: rowIn 0.25s ease both;
+        }
+        .an-label {
+            font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--accent); margin-bottom: 8px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .an-label::after {
+            content: ''; flex: 1; height: 1px;
+            background: var(--border);
+        }
+        .an-text {
+            font-size: 0.9rem; line-height: 1.75;
+            color: #9aa3c8;
+        }
+        .an-list {
+            list-style: none; padding: 0; margin: 0;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .an-list li {
+            font-size: 0.88rem; line-height: 1.6;
+            color: #9aa3c8;
+            padding-left: 14px; position: relative;
+        }
+        .an-list li::before {
+            content: ''; position: absolute;
+            left: 0; top: 10px;
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: var(--accent);
+            opacity: 0.5;
+        }
+        .an-quote {
+            border-left: 3px solid var(--accent-brd);
+            padding: 10px 16px;
+            background: var(--accent-dim);
+            border-radius: 0 6px 6px 0;
+            font-size: 0.88rem; line-height: 1.7;
+            color: var(--text-dim); font-style: italic;
+            margin-bottom: 8px;
+        }
+        .an-date {
+            font-size: 0.78rem; color: var(--text-hint);
+            margin-top: -14px; margin-bottom: 20px;
+        }
+
+        /* ─── TABS ─── */
+        .tabs-bar {
+            display: none; align-items: center;
             background: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border);
+            padding: 0 8px 0 12px;
+            gap: 2px; flex-wrap: nowrap; overflow-x: auto;
+        }
+        .tabs-bar.visible { display: flex; }
+        .tab-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 9px 14px;
+            background: none; border: none; border-bottom: 2px solid transparent;
+            color: var(--text-dim); font-size: 0.82rem; font-family: inherit;
+            cursor: pointer; white-space: nowrap;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .tab-btn:hover { color: var(--text-main); }
+        .tab-btn.tab-active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tabs-spacer { flex: 1; }
+        .toolbar-inline {
+            display: flex; align-items: center; gap: 6px; padding: 4px 0;
+        }
+
+        /* ─── TOOLBAR (old, keep for compat) ─── */
+        .toolbar {
+            display: none;
         }
         .toolbar-label {
             font-size: 0.7rem; font-weight: 600;
@@ -302,7 +450,7 @@
 
         /* ─── READING MODE: скрыть панели ─── */
         body.reading .player-bar,
-        body.reading .toolbar {
+        body.reading .tabs-bar {
             height: 0;
             overflow: hidden;
             opacity: 0;
@@ -310,7 +458,7 @@
             border: none;
             transition: height var(--transition), opacity var(--transition);
         }
-        .player-bar, .toolbar {
+        .player-bar, .tabs-bar {
             transition: height var(--transition), opacity var(--transition);
         }
 
@@ -519,6 +667,11 @@
             <path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
         </svg>
         <h1>Архив проповедей</h1>
+        <div class="theme-toggle">
+            <button class="theme-btn active" id="btn-dark" onclick="setTheme('dark')" title="Тёмная">🌑</button>
+            <button class="theme-btn" id="btn-dim" onclick="setTheme('dim')" title="Dim">🌗</button>
+            <button class="theme-btn" id="btn-light" onclick="setTheme('light')" title="Светлая">☀️</button>
+        </div>
     </div>
     <div class="search-wrap">
         <div class="search-inner">
@@ -582,30 +735,42 @@
         </div>
     </div>
 
-    <div class="toolbar" id="toolbar">
-        <span class="toolbar-label">Транскрипт</span>
-        <div class="toolbar-group">
-            <button class="tool-btn active" onclick="setFont('normal',this)">Aa</button>
-            <button class="tool-btn" onclick="setFont('large',this)">A+</button>
-        </div>
-        <div class="toolbar-group">
-            <button class="tool-btn active" id="v-normal" onclick="setView('normal')">
-                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-            </button>
-            <button class="tool-btn" id="v-compact" onclick="setView('compact')">
-                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
-            </button>
-        </div>
-        <div class="toolbar-group">
-            <button class="tool-btn" id="btn-reading" onclick="toggleReading()" title="Режим чтения">
-                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                Читать
-            </button>
+    <div class="tabs-bar" id="tabs-bar">
+        <button class="tab-btn tab-active" id="tab-transcript" onclick="switchTab('transcript')">
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/></svg>
+            Транскрипт
+        </button>
+        <button class="tab-btn" id="tab-analysis" onclick="switchTab('analysis')">
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Анализ
+        </button>
+        <div class="tabs-spacer"></div>
+        <div class="toolbar-inline" id="toolbar">
+            <div class="toolbar-group">
+                <button class="tool-btn active" onclick="setFont('normal',this)">Aa</button>
+                <button class="tool-btn" onclick="setFont('large',this)">A+</button>
+            </div>
+            <div class="toolbar-group">
+                <button class="tool-btn active" id="v-normal" onclick="setView('normal')">
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <button class="tool-btn" id="v-compact" onclick="setView('compact')">
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
+                </button>
+            </div>
+            <div class="toolbar-group">
+                <button class="tool-btn" id="btn-reading" onclick="toggleReading()" title="Режим чтения">
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    Читать
+                </button>
+            </div>
         </div>
     </div>
 
     <div class="content-wrap">
-        <div id="catalog">
+        <div id="catalog"></div>
+        <div id="analysis-panel" style="display:none"></div>
+        <div id="empty-state-wrap">
             <div class="empty-state">
                 <div class="empty-icon">
                     <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2d3450" stroke-width="1.5">
@@ -631,6 +796,22 @@
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
+function setTheme(theme) {
+    document.body.classList.remove('theme-dim', 'theme-light');
+    if (theme === 'dim') document.body.classList.add('theme-dim');
+    if (theme === 'light') document.body.classList.add('theme-light');
+    document.getElementById('btn-dark').classList.toggle('active', theme === 'dark');
+    document.getElementById('btn-dim').classList.toggle('active', theme === 'dim');
+    document.getElementById('btn-light').classList.toggle('active', theme === 'light');
+    localStorage.setItem('theme', theme);
+}
+
+// Restore saved theme
+(function() {
+    const t = localStorage.getItem('theme');
+    if (t === 'dim' || t === 'light') setTheme(t);
+})();
+
 let db = [], filteredDb = [];
 let player, ytReady = false, pendingId = null, currentIdx = null;
 let isReading = false;
@@ -765,6 +946,68 @@ function clearTextSearch() {
     document.getElementById('txtSearch').focus();
 }
 
+let currentTab = 'transcript';
+
+function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tab-transcript').classList.toggle('tab-active', tab === 'transcript');
+    document.getElementById('tab-analysis').classList.toggle('tab-active', tab === 'analysis');
+    document.getElementById('catalog').style.display = tab === 'transcript' ? '' : 'none';
+    document.getElementById('analysis-panel').style.display = tab === 'analysis' ? '' : 'none';
+    // поиск по тексту только в транскрипте
+    document.getElementById('txt-search-wrap').style.display = tab === 'transcript' ? '' : 'none';
+}
+
+function renderAnalysis(s) {
+    const a = s.analysis;
+    const panel = document.getElementById('analysis-panel');
+    if (!a) {
+        panel.innerHTML = '<div class="an-text" style="padding:24px;color:var(--text-hint)">Анализ для этой проповеди недоступен.</div>';
+        return;
+    }
+
+    let html = '';
+    if (a._date) html += `<div class="an-date">📅 ${a._date}</div>`;
+
+    if (a.topic) html += `
+        <div class="an-section">
+            <div class="an-label">Тема</div>
+            <div class="an-text">${a.topic}</div>
+        </div>`;
+
+    if (a.main_idea) html += `
+        <div class="an-section">
+            <div class="an-label">Главная мысль</div>
+            <div class="an-text">${a.main_idea}</div>
+        </div>`;
+
+    if (a.plan && a.plan.length) html += `
+        <div class="an-section">
+            <div class="an-label">План</div>
+            <ul class="an-list">${a.plan.map(p => `<li>${p}</li>`).join('')}</ul>
+        </div>`;
+
+    if (a.key_thoughts && a.key_thoughts.length) html += `
+        <div class="an-section">
+            <div class="an-label">Ключевые мысли</div>
+            <ul class="an-list">${a.key_thoughts.map(k => `<li>${k}</li>`).join('')}</ul>
+        </div>`;
+
+    if (a.application) html += `
+        <div class="an-section">
+            <div class="an-label">Применение</div>
+            <div class="an-text">${a.application}</div>
+        </div>`;
+
+    if (a.quotes && a.quotes.length) html += `
+        <div class="an-section">
+            <div class="an-label">Цитаты</div>
+            ${a.quotes.map(q => `<div class="an-quote">${q}</div>`).join('')}
+        </div>`;
+
+    panel.innerHTML = html || '<div class="an-text" style="padding:24px;color:var(--text-hint)">Нет данных.</div>';
+}
+
 function goBackToMenu() {
     document.body.classList.remove('sermon-loaded');
     if (isReading) toggleReading();
@@ -784,7 +1027,8 @@ function load(idx, el) {
     document.getElementById('info-divider').style.display = 'block';
     document.getElementById('info-actions').style.display = 'flex';
     document.getElementById('info-count').textContent = s.data.length + ' фрагментов';
-    document.getElementById('toolbar').style.display = 'flex';
+    document.getElementById('tabs-bar').classList.add('visible');
+    document.getElementById('empty-state-wrap').style.display = 'none';
 
     // Init player lazily (no autoplay) — ready for timecode seeks
     if (!player && ytReady) {
@@ -811,6 +1055,12 @@ function load(idx, el) {
         </div>`).join('');
 
     document.querySelector('.content-wrap').scrollTop = 0;
+
+    // Render analysis
+    renderAnalysis(s);
+
+    // Reset to transcript tab
+    switchTab('transcript');
 
     // Clear text search
     document.getElementById('txtSearch').value = '';
