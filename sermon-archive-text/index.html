@@ -168,6 +168,62 @@
 
         .list { overflow-y: auto; flex: 1; }
 
+        /* ─── SORT / FILTER ─── */
+        .list-controls {
+            padding: 6px 14px 8px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        }
+        .ctrl-select {
+            flex: 1; min-width: 0;
+            background: var(--bg-header);
+            border: 1px solid var(--border-lt);
+            border-radius: 14px;
+            color: var(--text-dim);
+            font-size: 0.76rem; font-family: inherit;
+            padding: 4px 10px;
+            outline: none; cursor: pointer;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .ctrl-select:focus { border-color: var(--accent); color: var(--text-main); }
+        .ctrl-sort-btn {
+            background: var(--bg-header);
+            border: 1px solid var(--border-lt);
+            border-radius: 14px;
+            color: var(--text-dim);
+            font-size: 0.76rem; font-family: inherit;
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+            white-space: nowrap;
+        }
+        .ctrl-sort-btn:hover, .ctrl-sort-btn.active {
+            background: var(--accent-dim); color: var(--accent); border-color: var(--accent-brd);
+        }
+
+        /* ─── PROGRESS BAR ─── */
+        .item-progress {
+            height: 2px;
+            background: var(--border);
+            border-radius: 1px;
+            margin-top: 5px;
+            overflow: hidden;
+            display: none;
+        }
+        .item-progress.has-progress { display: block; }
+        .item-progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 1px;
+            transition: width 0.3s;
+        }
+
+        /* ─── READ TIME ─── */
+        .read-time {
+            font-size: 0.72rem; color: var(--text-hint);
+            padding: 8px 20px 4px;
+        }
+
         .item {
             padding: 10px 16px;
             border-bottom: 1px solid rgba(45,52,80,0.6);
@@ -685,6 +741,13 @@
         <span class="list-info-label">Список</span>
         <span class="count-pill" id="count-badge">0</span>
     </div>
+    <div class="list-controls">
+        <select class="ctrl-select" id="authorFilter" onchange="applyFilters()">
+            <option value="">Все авторы</option>
+        </select>
+        <button class="ctrl-sort-btn active" id="sort-date" onclick="setSort('date')">По дате</button>
+        <button class="ctrl-sort-btn" id="sort-alpha" onclick="setSort('alpha')">А–Я</button>
+    </div>
     <div class="list" id="menu"></div>
 </div>
 
@@ -767,7 +830,8 @@
         </div>
     </div>
 
-    <div class="content-wrap">
+    <div class="content-wrap" id="content-wrap">
+        <div id="read-time-bar" style="display:none" class="read-time"></div>
         <div id="catalog"></div>
         <div id="analysis-panel" style="display:none"></div>
         <div id="empty-state-wrap">
@@ -818,7 +882,7 @@ let isReading = false;
 
 fetch('database.json')
     .then(r => r.json())
-    .then(data => { db = filteredDb = data; renderMenu(db); })
+    .then(data => { db = filteredDb = data; populateAuthors(); renderMenu(db); })
     .catch(() => loadDemo());
 
 function loadDemo() {
@@ -851,6 +915,7 @@ function loadDemo() {
         }
     ];
     filteredDb = db;
+    populateAuthors();
     renderMenu(db);
 }
 
@@ -864,6 +929,11 @@ function renderMenu(data) {
     el.innerHTML = data.map(s => {
         const i = db.indexOf(s);
         const thumb = `https://img.youtube.com/vi/${s.id}/mqdefault.jpg`;
+        const date = s.analysis && s.analysis._date ? `<span class="item-sep">•</span><span>${s.analysis._date}</span>` : '';
+        const prog = readProgress[i] || 0;
+        const progHtml = prog > 0
+            ? `<div class="item-progress has-progress"><div class="item-progress-fill" style="width:${prog}%"></div></div>`
+            : `<div class="item-progress"></div>`;
         return `<div class="item${i===currentIdx?' active':''}" onclick="load(${i},this)">
             <div class="item-thumb">
                 <img src="${thumb}" alt="" loading="lazy" onerror="this.style.display='none'">
@@ -875,19 +945,120 @@ function renderMenu(data) {
                 <div class="item-title">${s.title}</div>
                 <div class="item-meta">
                     <span>${s.author}</span>
+                    ${date}
                     <span class="item-sep">•</span>
                     <span>${s.data.length} фр.</span>
                 </div>
+                ${progHtml}
             </div>
         </div>`;
     }).join('');
 }
 
-function filterMenu() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    filteredDb = db.filter(s => s.title.toLowerCase().includes(q) || s.author.toLowerCase().includes(q));
-    renderMenu(filteredDb);
+let currentSort = 'date';
+let currentAuthor = '';
+let readProgress = {}; // idx -> percent
+
+function populateAuthors() {
+    const sel = document.getElementById('authorFilter');
+    const authors = [...new Set(db.map(s => s.author).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">Все авторы</option>' +
+        authors.map(a => `<option value="${a}">${a}</option>`).join('');
 }
+
+function setSort(mode) {
+    currentSort = mode;
+    document.getElementById('sort-date').classList.toggle('active', mode === 'date');
+    document.getElementById('sort-alpha').classList.toggle('active', mode === 'alpha');
+    applyFilters();
+}
+
+function applyFilters() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    currentAuthor = document.getElementById('authorFilter').value;
+    let data = db.filter(s => {
+        const matchQ = !q || s.title.toLowerCase().includes(q) || s.author.toLowerCase().includes(q);
+        const matchA = !currentAuthor || s.author === currentAuthor;
+        return matchQ && matchA;
+    });
+    if (currentSort === 'alpha') {
+        data = [...data].sort((a, b) => a.title.localeCompare(b.title, 'ru'));
+    } else {
+        data = [...data].sort((a, b) => {
+            const da = a.analysis && a.analysis._date ? parseDate(a.analysis._date) : 0;
+            const db2 = b.analysis && b.analysis._date ? parseDate(b.analysis._date) : 0;
+            return db2 - da;
+        });
+    }
+    filteredDb = data;
+    renderMenu(data);
+}
+
+function parseDate(str) {
+    // dd.mm.yyyy
+    const p = str.split('.');
+    if (p.length === 3) return new Date(p[2], p[1]-1, p[0]).getTime();
+    return 0;
+}
+
+function filterMenu() { applyFilters(); }
+
+// ─── PROGRESS TRACKING ───
+function updateProgress() {
+    if (currentIdx === null) return;
+    const cw = document.querySelector('.content-wrap');
+    const catalog = document.getElementById('catalog');
+    if (!catalog || catalog.style.display === 'none') return;
+    const scrolled = cw.scrollTop;
+    const total = catalog.scrollHeight - cw.clientHeight;
+    if (total <= 0) return;
+    const pct = Math.round(Math.min(100, (scrolled / total) * 100));
+    readProgress[currentIdx] = pct;
+    // update progress bar in menu without full re-render
+    const items = document.querySelectorAll('.item');
+    items.forEach(item => {
+        const onclick = item.getAttribute('onclick') || '';
+        const m = onclick.match(/load\((\d+)/);
+        if (m && parseInt(m[1]) === currentIdx) {
+            let bar = item.querySelector('.item-progress');
+            if (!bar) return;
+            bar.classList.add('has-progress');
+            let fill = bar.querySelector('.item-progress-fill');
+            if (!fill) {
+                fill = document.createElement('div');
+                fill.className = 'item-progress-fill';
+                bar.appendChild(fill);
+            }
+            fill.style.width = pct + '%';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelector('.content-wrap').addEventListener('scroll', updateProgress);
+});
+
+// ─── SWIPE between tabs on mobile ───
+(function() {
+    let startX = 0, startY = 0;
+    function onTouchStart(e) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+    }
+    function onTouchEnd(e) {
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            if (dx < 0 && currentTab === 'transcript') switchTab('analysis');
+            if (dx > 0 && currentTab === 'analysis') switchTab('transcript');
+        }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        const cw = document.querySelector('.content-wrap');
+        cw.addEventListener('touchstart', onTouchStart, { passive: true });
+        cw.addEventListener('touchend', onTouchEnd, { passive: true });
+    });
+})();
 
 let txtMatches = [], txtMatchIdx = 0;
 
@@ -1053,6 +1224,13 @@ function load(idx, el) {
             </div>
             <div class="txt-col">${item.c}</div>
         </div>`).join('');
+
+    // Read time estimate
+    const words = s.data.reduce((acc, d) => acc + d.c.split(/\s+/).length, 0);
+    const mins = Math.max(1, Math.round(words / 180));
+    const rtBar = document.getElementById('read-time-bar');
+    rtBar.textContent = `📖 ~${mins} мин чтения · ${words} слов`;
+    rtBar.style.display = 'block';
 
     document.querySelector('.content-wrap').scrollTop = 0;
 
